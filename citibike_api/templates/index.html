@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CitiBike Rebalancing Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header>
+  <div class="logo-dot"></div>
+  <h1>CitiBike Rebalancing Dashboard</h1>
+  <span class="subtitle">DTSC 691 &nbsp;·&nbsp; Database Capstone</span>
+</header>
+
+<main>
+
+  <!-- ── SYSTEM OVERVIEW (Queries 10 & 11) ------------------------------>
+  <section>
+    <div class="section-label">System Overview — Queries 10 &amp; 11</div>
+    <div class="stats-grid" id="stats-grid">
+      <div class="state-msg"><span class="spinner"></span>loading...</div>
+    </div>
+    <div id="date-range-bar"></div>
+  </section>
+
+  <!----FLAG SUMMARY (Query 9) ------------------------------>
+  <section>
+    <div class="section-label">Flag Summary — Query 9</div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">  Severity</span>
+      </div>
+      <div class="panel-body" id="flag-summary-body">
+        <div class="state-msg"><span class="spinner"></span>loading...</div>
+      </div>
+    </div>
+  </section>
+
+  <!----FLAGGED STATIONS (Query 8) ------------------------------>
+  <section>
+    <div class="section-label">Flagged Stations — Query 8</div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Active Problem Stations</span>
+        <div class="filter-row">
+          <select id="filter-flag-type" onchange="loadFlags()">
+            <option value="">All Types</option>
+            <option value="chronic_empty">Chronic Empty</option>
+            <option value="chronic_full">Chronic Full</option>
+            <option value="high imbalance">High Imbalance</option>
+          </select>
+          <select id="filter-severity" onchange="loadFlags()">
+            <option value="">All Severities</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <input type="number" id="filter-limit" value="50" min="5" max="500"
+                 style="width:70px" title="Max rows">
+          <button onclick="loadFlags()">Apply</button>
+        </div>
+      </div>
+      <div class="panel-body" id="flags-body">
+        <div class="state-msg"><span class="spinner"></span>loading...</div>
+      </div>
+    </div>
+  </section>
+
+    <!----BUSIEST CORRIDORS (Query 12) ──────────────────────── -->
+  <section>
+    <div class="section-label">Busiest Corridors — Query 12</div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Top Station-Pair Routes by Volume</span>
+        <div class="filter-row">
+          <label style="font-family:var(--mono);font-size:10px;color:var(--muted)">Min trips</label>
+          <input type="number" id="min-trips" value="500" min="1" style="width:80px">
+          <label style="font-family:var(--mono);font-size:10px;color:var(--muted)">Limit</label>
+          <input type="number" id="corridor-limit" value="20" min="5" max="100" style="width:60px">
+          <button onclick="loadCorridors()">Apply</button>
+        </div>
+      </div>
+      <div class="panel-body" id="corridors-body">
+        <div class="state-msg"><span class="spinner"></span>loading...</div>
+      </div>
+    </div>
+  </section>
+
+  <!----BUSIEST CORRIDORS (Query 13) ──────────────────────── -->
+  <section>
+  <div class="section-label">Bidirectional Imbalance — Query 13</div>
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Traffic Imbalance Between Station Pairs</span>
+      <div class="filter-row">
+        <label style="font-family:var(--mono);font-size:10px;color:var(--muted)">Limit</label>
+        <input type="number" id="imbalance-limit" value="20" min="5" max="100" style="width:60px">
+        <button onclick="loadImbalance()">Apply</button>
+      </div>
+    </div>
+    <div class="panel-body" id="imbalance-body">
+      <div class="state-msg"><span class="spinner"></span>loading...</div>
+    </div>
+  </div>
+</section>
+
+  <!----TWO-COL: RANKINGS (14) + WORST AVAILABILITY (15) ──── -->
+  <div class="two-col">
+
+    <section>
+      <div class="section-label">Problem Station Rankings — Query 14</div>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Ranked by Severity &amp; Age</span>
+        </div>
+        <div class="panel-body" id="rankings-body">
+          <div class="state-msg"><span class="spinner"></span>loading...</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-label">Worst Availability — Query 15</div>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Top 20 Stations by % Unavailable</span>
+        </div>
+        <div class="panel-body" id="worst-body">
+          <div class="state-msg"><span class="spinner"></span>loading...</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+
+</main>
+
+<script>
+const API = '';  // same origin — Flask serves both the page and the API
+
+// -----fetch helper------------------------------------------------
+async function apiFetch(path) {
+  const res = await fetch(API + path);
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || 'Request failed');
+  return json.data;
+}
+
+function err(msg)  { return `<div class="state-msg">⚠ ${msg}</div>`; }
+function empty()   { return `<div class="state-msg">No data found</div>`; }
+
+// -----format helpers ------------------------------------------------
+function fmtNum(n)  { return n == null ? '—' : Number(n).toLocaleString(); }
+
+function fmtDateShort(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function severityBadge(s) {
+  if (!s || s === 'none') return '<span style="color:var(--muted)">—</span>';
+  return `<span class="badge badge-${s}">${s}</span>`;
+}
+
+function flagBadge(f) {
+  if (!f || f === 'none') return '<span style="color:var(--muted)">—</span>';
+  const cls   = f === 'chronic_empty' ? 'badge-empty' : f === 'chronic_full' ? 'badge-full' : 'badge-imbalance';
+  const label = f.replace(/_/g, ' ');
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+// ---Query 10 & 11 — system stats ------------------------------------------------
+async function loadStats() {
+  try {
+       // 1. Fetch data from endpoints in parallel
+    const c = await apiFetch('/api/stats');
+    const d = await apiFetch('/api/stats/range');
+
+  // 2. Structure data for the dashboard cards
+    const cards = [
+      { label: 'Total Stations',  value: fmtNum(c.total_stations),     sub: `${fmtNum(c.active_stations)} active` },
+      { label: 'Total Trips',     value: fmtNum(c.total_trips),         sub: 'historical records' },
+      { label: 'Snapshots',       value: fmtNum(c.total_snapshots),     sub: 'availability records' },
+      { label: 'Active Flags',    value: fmtNum(c.active_flags),        sub: 'unresolved issues' },
+      { label: 'Chronic Empty',   value: fmtNum(c.chronic_empty_count), sub: 'stations' },
+      { label: 'Chronic Full',    value: fmtNum(c.chronic_full_count),  sub: 'stations' },
+    ];
+       // 3. Render cards into #stats-grid with staggered animation delay
+    document.getElementById('stats-grid').innerHTML = cards.map((c, i) => `
+      <div class="stat-card" style="transition-delay:${i * 60}ms">
+        <div class="label">${c.label}</div>
+        <div class="value">${c.value}</div>
+        <div class="sub">${c.sub}</div>
+      </div>
+    `).join('');
+
+    // 4. Trigger CSS animation
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.stat-card').forEach(el => el.classList.add('loaded'));
+    });
+
+    // 5. Populate date range information
+    document.getElementById('date-range-bar').innerHTML = `
+      <div class="date-range">
+        <div class="date-item"><span class="dl">Snapshots from</span><span class="dv">${fmtDateShort(d.snapshots_starts)}</span></div>
+        <div class="date-item"><span class="dl">Snapshots to</span>  <span class="dv">${fmtDateShort(d.snapshots_ends)}</span></div>
+        <div class="date-item"><span class="dl">Trips from</span>    <span class="dv">${fmtDateShort(d.trips_start)}</span></div>
+        <div class="date-item"><span class="dl">Trips to</span>      <span class="dv">${fmtDateShort(d.trips_end)}</span></div>
+      </div>`;
+
+  } catch(e) {
+    document.getElementById('stats-grid').innerHTML = err(e.message);
+  }
+}
+
+// ---Query 9 — flag summary ------------------------------------------------
+async function loadFlagSummary() {
+  try {
+    const rows = await apiFetch('/api/flags/summary'); //Pauses execution to retrieve flag data without
+    if (!rows.length) { document.getElementById('flag-summary-body').innerHTML = empty(); return; }
+
+    document.getElementById('flag-summary-body').innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Flag Type</th><th>Severity</th><th>Active Count</th>
+          <th>Oldest Active</th><th>Newest Active</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => `<tr>        
+            <td>${flagBadge(r.flag_type)}</td>
+            <td>${severityBadge(r.severity)}</td>
+            <td style="font-family:var(--mono);color:var(--accent)">${fmtNum(r.active_count)}</td>
+            <td style="color:var(--muted)">${fmtDateShort(r.oldest_active)}</td>
+            <td style="color:var(--muted)">${fmtDateShort(r.newest_active)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('flag-summary-body').innerHTML = err(e.message);
+  }
+}
+
+// ---Query 8 — flagged stations ------------------------------------------------
+async function loadFlags() {
+  document.getElementById('flags-body').innerHTML = `<div class="state-msg"><span class="spinner"></span>loading...</div>`;
+  //filters
+  const flagType = document.getElementById('filter-flag-type').value;
+  const severity = document.getElementById('filter-severity').value;
+  const limit    = document.getElementById('filter-limit').value || 50;
+
+  let url = `/api/flags?limit=${limit}`;
+  if (flagType) url += `&flag_type=${flagType}`;
+  if (severity) url += `&severity=${severity}`;
+
+  try {
+    const rows = await apiFetch(url);
+    if (!rows.length) { document.getElementById('flags-body').innerHTML = empty(); return; }
+
+    document.getElementById('flags-body').innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Station</th><th>Short Name</th><th>Flag Type</th>
+          <th>Severity</th><th>Capacity</th><th>Detected</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => `<tr>
+            <td>${r.name}</td>
+            <td style="font-family:var(--mono);color:var(--muted)">${r.short_name}</td>
+            <td>${flagBadge(r.flag_type)}</td>
+            <td>${severityBadge(r.severity)}</td>
+            <td style="font-family:var(--mono)">${r.capacity ?? '—'}</td>
+            <td style="color:var(--muted)">${fmtDateShort(r.detected_at)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('flags-body').innerHTML = err(e.message);
+  }
+}
+
+// ---Query 12 — busiest corridors ------------------------------------------------
+async function loadCorridors() {
+  document.getElementById('corridors-body').innerHTML = `<div class="state-msg"><span class="spinner"></span>loading...</div>`;
+  const minTrips = document.getElementById('min-trips').value || 500;
+  const limit    = document.getElementById('corridor-limit').value || 20;
+
+  try {
+    const data = await apiFetch(`/api/corridors?min_trips=${minTrips}&limit=${limit}`);
+    const rows = data;
+    if (!rows.length) { document.getElementById('corridors-body').innerHTML = empty(); return; }
+
+    document.getElementById('corridors-body').innerHTML = `
+      <table>
+        <thead><tr>
+          <th>From</th><th>To</th><th>Trips</th><th>Avg Duration</th><th>% Member</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => `<tr>
+            <td>${r.start_station_name}</td>
+            <td>${r.end_station_name}</td>
+            <td style="font-family:var(--mono);color:var(--accent)">${fmtNum(r.trip_count)}</td>
+            <td style="font-family:var(--mono);color:var(--muted)">${r.avg_duration_in_min} min</td>
+            <td style="font-family:var(--mono)">${r.pct_member}%</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('corridors-body').innerHTML = err(e.message);
+  }
+}
+// ── Query 13 — bidirectional imbalance ────────────────────────────────────────
+async function loadImbalance() {
+  document.getElementById('imbalance-body').innerHTML = `<div class="state-msg"><span class="spinner"></span>loading...</div>`;
+  const limit = document.getElementById('imbalance-limit').value || 20;
+
+  try {
+    const rows = await apiFetch(`/api/corridors/imbalance?limit=${limit}`);
+    if (!rows.length) { document.getElementById('imbalance-body').innerHTML = empty(); return; }
+
+    document.getElementById('imbalance-body').innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Station A</th><th>Station B</th><th>A→B</th>
+          <th>B→A</th><th>Imbalance</th><th>% Imbalance</th><th>Direction</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => {
+            const pct   = parseFloat(r.pct_imbalance);
+            const color = pct > 75 ? 'var(--accent2)' : pct > 50 ? 'var(--warn)' : 'var(--text)';
+            return `<tr>
+              <td>${r.station_a_name}</td>
+              <td>${r.station_b_name}</td>
+              <td style="font-family:var(--mono)">${fmtNum(r.trips_a_to_b)}</td>
+              <td style="font-family:var(--mono)">${fmtNum(r.trips_b_to_a)}</td>
+              <td style="font-family:var(--mono);color:var(--warn)">${fmtNum(r.abs_imbalance)}</td>
+              <td style="font-family:var(--mono);color:${color};font-weight:700">${r.pct_imbalance}%</td>
+              <td style="color:var(--muted);font-size:11px">${r.imbalance_direction}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('imbalance-body').innerHTML = err(e.message);
+  }
+}
+// ---Query 14 — problem station rankings ------------------------------------------------
+async function loadRankings() {
+  try {
+    const rows = await apiFetch('/api/rankings');
+    if (!rows.length) { document.getElementById('rankings-body').innerHTML = empty(); return; }
+
+    document.getElementById('rankings-body').innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Rank</th><th>Station</th><th>Flag</th><th>Severity</th><th>Total in flag type</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => {
+            const rankCls = r.rank_within_flag <= 3 ? `rank-${r.rank_within_flag}` : 'rank-num';
+            return `<tr>
+              <td class="${rankCls}" style="font-family:var(--mono)">#${r.rank_within_flag}</td>
+              <td>${r.name}</td>
+              <td>${flagBadge(r.flag_type)}</td>
+              <td>${severityBadge(r.severity)}</td>
+              <td style="font-family:var(--mono);color:var(--muted)">${r.total_in_flag_type}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('rankings-body').innerHTML = err(e.message);
+  }
+}
+
+// ---Query 15 — worst availability ------------------------------------------------
+async function loadWorst() {
+  try {
+    const rows = await apiFetch('/api/rankings/worst_availability');
+    if (!rows.length) { document.getElementById('worst-body').innerHTML = empty(); return; }
+
+    document.getElementById('worst-body').innerHTML = `
+      <table>
+        <thead><tr>
+          <th>#</th><th>Station</th><th>% Empty</th>
+          <th>% Full</th><th>% Total Unavailable</th><th>Days</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map((r, i) => {
+            const pct   = parseFloat(r.avg_pct_unavailable);
+            const color = pct > 50 ? 'var(--accent2)' : pct > 25 ? 'var(--warn)' : 'var(--text)';
+            return `<tr>
+              <td class="rank-num" style="font-family:var(--mono)">${i + 1}</td>
+              <td>${r.name}</td>
+              <td style="font-family:var(--mono);color:var(--accent2)">${r.avg_pct_empty}%</td>
+              <td style="font-family:var(--mono);color:var(--accent)">${r.avg_pct_full}%</td>
+              <td style="font-family:var(--mono);color:${color};font-weight:700">${r.avg_pct_unavailable}%</td>
+              <td style="font-family:var(--mono);color:var(--muted)">${r.days_sampled}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('worst-body').innerHTML = err(e.message);
+  }
+}
+
+
+
+// ── boot — load all panels on page load ------------------------------------------------
+loadStats();
+loadFlagSummary();
+loadFlags();
+loadCorridors();
+loadRankings();
+loadWorst();
+loadImbalance();
+
+</script>
+</body>
+</html>

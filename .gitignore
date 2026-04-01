@@ -1,0 +1,29 @@
+
+.env
+security
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.Python
+venv/
+env/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Data files (too large for GitHub)
+*.csv
+*.zip
+data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Flask
+instance/
+flask_session/
