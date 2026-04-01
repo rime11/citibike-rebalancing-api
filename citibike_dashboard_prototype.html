@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CitiBike Rebalancing Dashboard — Prototype</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ---- reset & variables --------------------------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0a0e14;
+  --surface:   #111720;
+  --border:    #1e2d3d;
+  --accent:    #00c2ff;
+  --accent2:   #ff6b35;
+  --warn:      #ffb547;
+  --ok:        #3ddc97;
+  --text:      #cdd9e5;
+  --muted:     #637589;
+  --mono:      'Space Mono', monospace;
+  --sans:      'DM Sans', sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  min-height: 100vh;
+}
+
+/* ---- header --------------------------------- */
+header {
+  border-bottom: 1px solid var(--border);
+  padding: 18px 32px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+header h1 {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+header .subtitle {
+  font-size: 12px;
+  color: var(--muted);
+  margin-left: auto;
+  font-family: var(--mono);
+}
+
+.demo-badge {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  background: rgba(255,181,71,0.08);
+}
+
+/* -------- layout ------------------------------ */
+main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* -------- stat cards ------------------------------ */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--accent);
+  padding: 16px 18px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.stat-card.loaded { opacity: 1; transform: translateY(0); }
+
+.stat-card .label {
+  font-size: 10px;
+  font-family: var(--mono);
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.stat-card .value {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.stat-card .sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+/* ------- panels ------------------------------ */
+.panel { background: var(--surface); border: 1px solid var(--border); }
+
+.panel-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.panel-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  flex: 1;
+}
+
+.panel-body { padding: 0; overflow-x: auto; }
+
+/* ------- filters ------------------------------ */
+.filter-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+select, input[type="number"] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 5px 10px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+select:hover, input[type="number"]:hover,
+select:focus, input[type="number"]:focus { border-color: var(--accent); }
+
+button {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  padding: 5px 14px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: background 0.2s, color 0.2s;
+}
+
+button:hover { background: var(--accent); color: var(--bg); }
+
+/* ------- tables ------------------------------ */
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+thead tr { background: var(--bg); border-bottom: 1px solid var(--border); }
+
+thead th {
+  padding: 10px 14px;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: rgba(0, 194, 255, 0.04); }
+tbody td { padding: 10px 14px; color: var(--text); white-space: nowrap; }
+
+/* -------badges ------------------------------ */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.badge-high     { background: rgba(255,107,53,0.15); color: var(--accent2); border: 1px solid var(--accent2); }
+.badge-medium   { background: rgba(255,181,71,0.15); color: var(--warn);    border: 1px solid var(--warn); }
+.badge-low      { background: rgba(61,220,151,0.12); color: var(--ok);      border: 1px solid var(--ok); }
+.badge-empty    { background: rgba(255,107,53,0.12); color: var(--accent2); border: 1px solid rgba(255,107,53,0.4); }
+.badge-full     { background: rgba(0,194,255,0.12);  color: var(--accent);  border: 1px solid rgba(0,194,255,0.4); }
+.badge-imbalance{ background: rgba(255,181,71,0.12); color: var(--warn);    border: 1px solid rgba(255,181,71,0.4); }
+
+.state-msg {
+  padding: 32px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+}
+
+/* ------ two-col layout ------------------------------ */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+
+.rank-num { font-family: var(--mono); color: var(--muted); font-size: 11px; }
+.rank-1   { color: var(--accent2); }
+.rank-2   { color: var(--warn); }
+.rank-3   { color: var(--ok); }
+
+/* ------ date range bar ------------------------------ */
+.date-range {
+  display: flex;
+  gap: 24px;
+  padding: 12px 18px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.date-item { display: flex; flex-direction: column; gap: 2px; }
+.date-item .dl { font-family: var(--mono); font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+.date-item .dv { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+
+@media (max-width: 900px) {
+  .two-col  { grid-template-columns: 1fr; }
+  main      { padding: 16px; }
+  header    { padding: 14px 16px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-dot"></div>
+  <h1>CitiBike Rebalancing Dashboard</h1>
+  <span class="demo-badge">Demo</span>
+  <span class="subtitle">DTSC 691 &nbsp;·&nbsp; Database Capstone</span>
+</header>
+
+<main>
+
+  <!-- SYSTEM OVERVIEW -->
+  <section>
+    <div class="section-label">System Overview — Queries 10 &amp; 11</div>
+    <div class="stats-grid" id="stats-grid"></div>
+    <div id="date-range-bar"></div>
+  </section>
+
+  <!-- FLAG SUMMARY -->
+  <section>
+    <div class="section-label">Flag Summary — Query 9</div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Severity Breakdown</span>
+      </div>
+      <div class="panel-body" id="flag-summary-body"></div>
+    </div>
+  </section>
+
+  <!-- FLAGGED STATIONS -->
+  <section>
+    <div class="section-label">Flagged Stations — Query 8</div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Active Problem Stations</span>
+        <div class="filter-row">
+          <select id="filter-flag-type" onchange="renderFlags()">
+            <option value="">All Types</option>
+            <option value="chronic_empty">Chronic Empty</option>
+            <option value="chronic_full">Chronic Full</option>
+            <option value="high_imbalance">High Imbalance</option>
+          </select>
+          <select id="filter-severity" onchange="renderFlags()">
+            <option value="">All Severities</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <input type="number" id="filter-limit" value="50" min="5" max="500" style="width:70px" title="Max rows">
+          <button onclick="renderFlags()">Apply</button>
+        </div>
+      </div>
+      <div class="panel-body" id="flags-body"></div>
+    </div>
+  </section>
+
+  <!-- BUSIEST CORRIDORS -->
+  <section>
+    <div class="section-label">Busiest Corridors — Query 12</div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Top Station-Pair Routes by Volume</span>
+        <div class="filter-row">
+          <label style="font-family:var(--mono);font-size:10px;color:var(--muted)">Min trips</label>
+          <input type="number" id="min-trips" value="500" min="1" style="width:80px">
+          <label style="font-family:var(--mono);font-size:10px;color:var(--muted)">Limit</label>
+          <input type="number" id="corridor-limit" value="20" min="5" max="100" style="width:60px">
+          <button onclick="renderCorridors()">Apply</button>
+        </div>
+      </div>
+      <div class="panel-body" id="corridors-body"></div>
+    </div>
+  </section>
+
+  <!-- BIDIRECTIONAL IMBALANCE -->
+  <section>
+    <div class="section-label">Bidirectional Imbalance — Query 13</div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Traffic Imbalance Between Station Pairs</span>
+        <div class="filter-row">
+          <label style="font-family:var(--mono);font-size:10px;color:var(--muted)">Limit</label>
+          <input type="number" id="imbalance-limit" value="20" min="5" max="100" style="width:60px">
+          <button onclick="renderImbalance()">Apply</button>
+        </div>
+      </div>
+      <div class="panel-body" id="imbalance-body"></div>
+    </div>
+  </section>
+
+  <!-- TWO-COL: RANKINGS + WORST AVAILABILITY -->
+  <div class="two-col">
+
+    <section>
+      <div class="section-label">Problem Station Rankings — Query 14</div>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Ranked by Severity &amp; Age</span>
+        </div>
+        <div class="panel-body" id="rankings-body"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-label">Worst Availability — Query 15</div>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Top 20 Stations by % Unavailable</span>
+        </div>
+        <div class="panel-body" id="worst-body"></div>
+      </div>
+    </section>
+
+  </div>
+
+</main>
+
+<script>
+// ─── FORMAT HELPERS ──────────────────────────────────────────────────────────
+function fmtNum(n)  { return n == null ? '—' : Number(n).toLocaleString(); }
+function fmtDate(d) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+
+function severityBadge(s) {
+  if (!s) return '<span style="color:var(--muted)">—</span>';
+  return `<span class="badge badge-${s}">${s}</span>`;
+}
+
+function flagBadge(f) {
+  if (!f) return '<span style="color:var(--muted)">—</span>';
+  const cls = f === 'chronic_empty' ? 'badge-empty' : f === 'chronic_full' ? 'badge-full' : 'badge-imbalance';
+  return `<span class="badge ${cls}">${f.replace(/_/g,' ')}</span>`;
+}
+
+// ─── MOCK DATA ────────────────────────────────────────────────────────────────
+
+const STATS = {
+  total_stations:      2422,
+  active_stations:     2301,
+  total_trips:         3835815,
+  total_snapshots:     9603581,
+  active_flags:        1387,
+  chronic_empty_count: 453,
+  chronic_full_count:  308
+};
+
+const DATE_RANGE = {
+  snapshots_starts: '2026-01-15',
+  snapshots_ends:   '2026-01-29',
+  trips_start:      '2025-11-30',
+  trips_end:        '2026-01-31'
+};
+
+const FLAG_SUMMARY = [
+  { flag_type: 'chronic_empty',   severity: 'high',   active_count: 43, oldest_active: '2024-09-12', newest_active: '2025-01-10' },
+  { flag_type: 'chronic_empty',   severity: 'medium', active_count: 114, oldest_active: '2024-10-03', newest_active: '2025-01-14' },
+  { flag_type: 'chronic_empty',   severity: 'low',    active_count: 296, oldest_active: '2024-11-01', newest_active: '2025-01-13' },
+  { flag_type: 'chronic_full',    severity: 'high',   active_count: 28, oldest_active: '2024-09-20', newest_active: '2025-01-09' },
+  { flag_type: 'chronic_full',    severity: 'medium', active_count: 80, oldest_active: '2024-10-15', newest_active: '2025-01-12' },
+  { flag_type: 'chronic_full',    severity: 'low',    active_count: 200, oldest_active: '2024-11-08', newest_active: '2025-01-11' },
+  { flag_type: 'high_imbalance',  severity: 'high',   active_count: 284, oldest_active: '2024-09-05', newest_active: '2025-01-15' },
+  { flag_type: 'high_imbalance',  severity: 'medium', active_count: 342, oldest_active: '2024-09-18', newest_active: '2025-01-15' },
+];
+
+const ALL_FLAGS = [
+  { name: 'W 21 St & 6 Ave',           short_name: '6926.01', flag_type: 'chronic_empty',  severity: 'high',   capacity: 39, detected_at: '2024-09-12' },
+  { name: 'E 43 St & Vanderbilt Ave',   short_name: '6140.05', flag_type: 'high_imbalance', severity: 'high',   capacity: 55, detected_at: '2024-09-05' },
+  { name: 'Pershing Square North',      short_name: '6140.01', flag_type: 'high_imbalance', severity: 'high',   capacity: 61, detected_at: '2024-09-06' },
+  { name: '8 Ave & W 31 St',            short_name: '6932.02', flag_type: 'chronic_empty',  severity: 'high',   capacity: 47, detected_at: '2024-09-14' },
+  { name: 'Central Park S & 6 Ave',     short_name: '6204.09', flag_type: 'high_imbalance', severity: 'high',   capacity: 43, detected_at: '2024-09-08' },
+  { name: 'Broadway & W 60 St',         short_name: '6204.07', flag_type: 'chronic_full',   severity: 'high',   capacity: 35, detected_at: '2024-09-20' },
+  { name: '1 Ave & E 62 St',            short_name: '6398.05', flag_type: 'high_imbalance', severity: 'high',   capacity: 37, detected_at: '2024-09-10' },
+  { name: 'Pike St & Monroe St',        short_name: '5765.01', flag_type: 'chronic_empty',  severity: 'high',   capacity: 23, detected_at: '2024-09-18' },
+  { name: 'W 33 St & 7 Ave',            short_name: '6932.04', flag_type: 'high_imbalance', severity: 'high',   capacity: 67, detected_at: '2024-09-09' },
+  { name: 'Grand Army Plaza & Plaza St W', short_name: '3002.11', flag_type: 'chronic_full', severity: 'high',  capacity: 45, detected_at: '2024-09-22' },
+  { name: 'South St & Whitehall St',    short_name: '5213.09', flag_type: 'high_imbalance', severity: 'medium', capacity: 29, detected_at: '2024-10-03' },
+  { name: '11 Ave & W 27 St',           short_name: '6821.04', flag_type: 'chronic_empty',  severity: 'medium', capacity: 31, detected_at: '2024-10-07' },
+  { name: 'E 10 St & Avenue A',         short_name: '5788.11', flag_type: 'chronic_empty',  severity: 'medium', capacity: 27, detected_at: '2024-10-11' },
+  { name: 'Lexington Ave & E 28 St',    short_name: '6148.06', flag_type: 'chronic_full',   severity: 'medium', capacity: 39, detected_at: '2024-10-15' },
+  { name: 'Atlantic Ave & Fort Greene Pl', short_name: '3221.01', flag_type: 'high_imbalance', severity: 'medium', capacity: 53, detected_at: '2024-10-09' },
+  { name: 'Jay St & York St',           short_name: '3234.04', flag_type: 'high_imbalance', severity: 'medium', capacity: 41, detected_at: '2024-10-12' },
+  { name: 'Clinton Ave & Flushing Ave', short_name: '3291.02', flag_type: 'chronic_empty',  severity: 'medium', capacity: 19, detected_at: '2024-10-20' },
+  { name: 'Prospect Park West & 8 St',  short_name: '3002.09', flag_type: 'chronic_full',   severity: 'medium', capacity: 33, detected_at: '2024-10-18' },
+  { name: 'Dean St & 4 Ave',            short_name: '3221.07', flag_type: 'high_imbalance', severity: 'medium', capacity: 27, detected_at: '2024-10-22' },
+  { name: 'E 72 St & Park Ave',         short_name: '6344.03', flag_type: 'chronic_empty',  severity: 'medium', capacity: 35, detected_at: '2024-10-25' },
+  { name: 'Chambers St & West Side Hwy', short_name: '5213.13', flag_type: 'high_imbalance', severity: 'low',   capacity: 43, detected_at: '2024-11-01' },
+  { name: 'W 110 St & Amsterdam Ave',   short_name: '7216.03', flag_type: 'chronic_empty',  severity: 'low',   capacity: 21, detected_at: '2024-11-04' },
+  { name: 'Columbia St & Kane St',      short_name: '3234.09', flag_type: 'chronic_full',   severity: 'low',   capacity: 25, detected_at: '2024-11-08' },
+  { name: 'E 53 St & Madison Ave',      short_name: '6175.04', flag_type: 'high_imbalance', severity: 'low',   capacity: 47, detected_at: '2024-11-05' },
+  { name: '2 Ave & E 96 St',            short_name: '6426.02', flag_type: 'chronic_empty',  severity: 'low',   capacity: 19, detected_at: '2024-11-12' },
+];
+
+const ALL_CORRIDORS = [
+  { start_station_name: 'Central Park S & 6 Ave',      end_station_name: 'W 58 St & 10 Ave',         trip_count: 4821, avg_duration_in_min: '8.4',  pct_member: '71.2' },
+  { start_station_name: '1 Ave & E 68 St',             end_station_name: '1 Ave & E 62 St',           trip_count: 4417, avg_duration_in_min: '6.1',  pct_member: '83.5' },
+  { start_station_name: 'W 21 St & 6 Ave',             end_station_name: 'W 22 St & 10 Ave',          trip_count: 4102, avg_duration_in_min: '7.9',  pct_member: '68.9' },
+  { start_station_name: 'Pershing Square North',        end_station_name: 'E 43 St & Vanderbilt Ave',  trip_count: 3988, avg_duration_in_min: '5.2',  pct_member: '89.1' },
+  { start_station_name: 'Broadway & W 60 St',          end_station_name: 'Central Park S & 6 Ave',    trip_count: 3754, avg_duration_in_min: '9.3',  pct_member: '55.4' },
+  { start_station_name: '8 Ave & W 31 St',             end_station_name: 'W 33 St & 7 Ave',           trip_count: 3621, avg_duration_in_min: '4.8',  pct_member: '91.2' },
+  { start_station_name: 'Grand Army Plaza & Plaza St W', end_station_name: 'Prospect Park West & 8 St', trip_count: 3418, avg_duration_in_min: '11.2', pct_member: '44.7' },
+  { start_station_name: 'Jay St & York St',            end_station_name: 'Atlantic Ave & Fort Greene Pl', trip_count: 3205, avg_duration_in_min: '8.7', pct_member: '62.3' },
+  { start_station_name: 'South St & Whitehall St',     end_station_name: 'Chambers St & West Side Hwy', trip_count: 2987, avg_duration_in_min: '10.1', pct_member: '57.8' },
+  { start_station_name: 'E 53 St & Madison Ave',       end_station_name: 'Lexington Ave & E 28 St',   trip_count: 2844, avg_duration_in_min: '7.6',  pct_member: '86.4' },
+  { start_station_name: 'W 110 St & Amsterdam Ave',    end_station_name: '2 Ave & E 96 St',           trip_count: 2701, avg_duration_in_min: '14.3', pct_member: '38.2' },
+  { start_station_name: 'Clinton Ave & Flushing Ave',  end_station_name: 'Jay St & York St',           trip_count: 2589, avg_duration_in_min: '9.4',  pct_member: '71.6' },
+  { start_station_name: '11 Ave & W 27 St',            end_station_name: '8 Ave & W 31 St',           trip_count: 2412, avg_duration_in_min: '6.2',  pct_member: '79.3' },
+  { start_station_name: 'E 72 St & Park Ave',          end_station_name: '1 Ave & E 68 St',           trip_count: 2187, avg_duration_in_min: '8.9',  pct_member: '66.1' },
+  { start_station_name: 'Dean St & 4 Ave',             end_station_name: 'Grand Army Plaza & Plaza St W', trip_count: 1998, avg_duration_in_min: '12.5', pct_member: '48.9' },
+  { start_station_name: 'Pike St & Monroe St',         end_station_name: 'South St & Whitehall St',   trip_count: 1854, avg_duration_in_min: '13.7', pct_member: '33.4' },
+  { start_station_name: 'E 10 St & Avenue A',          end_station_name: 'E 53 St & Madison Ave',     trip_count: 1672, avg_duration_in_min: '18.2', pct_member: '41.7' },
+  { start_station_name: 'Columbia St & Kane St',       end_station_name: 'Dean St & 4 Ave',           trip_count: 1544, avg_duration_in_min: '10.8', pct_member: '53.2' },
+  { start_station_name: 'Broadway & W 60 St',          end_station_name: '1 Ave & E 62 St',           trip_count: 1432, avg_duration_in_min: '16.4', pct_member: '29.8' },
+  { start_station_name: 'Prospect Park West & 8 St',   end_station_name: 'Columbia St & Kane St',     trip_count: 1289, avg_duration_in_min: '15.1', pct_member: '44.3' },
+];
+
+const ALL_IMBALANCE = [
+  { station_a_name: '8 Ave & W 31 St',             station_b_name: 'W 33 St & 7 Ave',           trips_a_to_b: 3621, trips_b_to_a: 891,  abs_imbalance: 2730, pct_imbalance: '75.4', imbalance_direction: 'Mostly toward W 33 St' },
+  { station_a_name: 'Central Park S & 6 Ave',      station_b_name: 'Broadway & W 60 St',         trips_a_to_b: 4821, trips_b_to_a: 1402, abs_imbalance: 3419, pct_imbalance: '70.9', imbalance_direction: 'Mostly toward Broadway' },
+  { station_a_name: 'Pershing Square North',        station_b_name: 'E 43 St & Vanderbilt Ave',  trips_a_to_b: 3988, trips_b_to_a: 1244, abs_imbalance: 2744, pct_imbalance: '68.8', imbalance_direction: 'Mostly toward E 43 St' },
+  { station_a_name: 'Jay St & York St',            station_b_name: 'Atlantic Ave & Fort Greene Pl', trips_a_to_b: 3205, trips_b_to_a: 1118, abs_imbalance: 2087, pct_imbalance: '65.1', imbalance_direction: 'Mostly toward Atlantic Ave' },
+  { station_a_name: 'Grand Army Plaza & Plaza St W', station_b_name: 'Prospect Park West & 8 St', trips_a_to_b: 3418, trips_b_to_a: 1312, abs_imbalance: 2106, pct_imbalance: '61.6', imbalance_direction: 'Mostly toward Prospect Park W' },
+  { station_a_name: '1 Ave & E 68 St',             station_b_name: '1 Ave & E 62 St',           trips_a_to_b: 4417, trips_b_to_a: 1776, abs_imbalance: 2641, pct_imbalance: '59.7', imbalance_direction: 'Mostly toward E 62 St' },
+  { station_a_name: 'South St & Whitehall St',     station_b_name: 'Chambers St & West Side Hwy', trips_a_to_b: 2987, trips_b_to_a: 1221, abs_imbalance: 1766, pct_imbalance: '59.1', imbalance_direction: 'Mostly toward Chambers St' },
+  { station_a_name: 'E 53 St & Madison Ave',       station_b_name: 'Lexington Ave & E 28 St',   trips_a_to_b: 2844, trips_b_to_a: 1189, abs_imbalance: 1655, pct_imbalance: '58.2', imbalance_direction: 'Mostly toward Lexington Ave' },
+  { station_a_name: 'W 21 St & 6 Ave',             station_b_name: 'W 22 St & 10 Ave',          trips_a_to_b: 4102, trips_b_to_a: 1811, abs_imbalance: 2291, pct_imbalance: '55.8', imbalance_direction: 'Mostly toward W 22 St' },
+  { station_a_name: 'Clinton Ave & Flushing Ave',  station_b_name: 'Jay St & York St',           trips_a_to_b: 2589, trips_b_to_a: 1172, abs_imbalance: 1417, pct_imbalance: '54.7', imbalance_direction: 'Mostly toward Jay St' },
+  { station_a_name: '11 Ave & W 27 St',            station_b_name: '8 Ave & W 31 St',           trips_a_to_b: 2412, trips_b_to_a: 1144, abs_imbalance: 1268, pct_imbalance: '52.6', imbalance_direction: 'Mostly toward 8 Ave' },
+  { station_a_name: 'Dean St & 4 Ave',             station_b_name: 'Grand Army Plaza & Plaza St W', trips_a_to_b: 1998, trips_b_to_a: 967,  abs_imbalance: 1031, pct_imbalance: '51.6', imbalance_direction: 'Mostly toward Grand Army' },
+  { station_a_name: 'E 72 St & Park Ave',          station_b_name: '1 Ave & E 68 St',           trips_a_to_b: 2187, trips_b_to_a: 1082, abs_imbalance: 1105, pct_imbalance: '50.5', imbalance_direction: 'Mostly toward 1 Ave' },
+  { station_a_name: 'Pike St & Monroe St',         station_b_name: 'South St & Whitehall St',   trips_a_to_b: 1854, trips_b_to_a: 934,  abs_imbalance: 920,  pct_imbalance: '49.6', imbalance_direction: 'Mostly toward South St' },
+  { station_a_name: 'Columbia St & Kane St',       station_b_name: 'Dean St & 4 Ave',           trips_a_to_b: 1544, trips_b_to_a: 822,  abs_imbalance: 722,  pct_imbalance: '46.8', imbalance_direction: 'Mostly toward Dean St' },
+  { station_a_name: 'W 110 St & Amsterdam Ave',    station_b_name: '2 Ave & E 96 St',           trips_a_to_b: 2701, trips_b_to_a: 1471, abs_imbalance: 1230, pct_imbalance: '45.5', imbalance_direction: 'Mostly toward 2 Ave' },
+  { station_a_name: 'E 10 St & Avenue A',          station_b_name: 'E 53 St & Madison Ave',     trips_a_to_b: 1672, trips_b_to_a: 912,  abs_imbalance: 760,  pct_imbalance: '45.4', imbalance_direction: 'Mostly toward E 53 St' },
+  { station_a_name: 'Broadway & W 60 St',          station_b_name: '1 Ave & E 62 St',           trips_a_to_b: 1432, trips_b_to_a: 804,  abs_imbalance: 628,  pct_imbalance: '43.8', imbalance_direction: 'Mostly toward 1 Ave' },
+  { station_a_name: 'Prospect Park West & 8 St',   station_b_name: 'Columbia St & Kane St',     trips_a_to_b: 1289, trips_b_to_a: 731,  abs_imbalance: 558,  pct_imbalance: '43.3', imbalance_direction: 'Mostly toward Columbia St' },
+  { station_a_name: 'E 72 St & Park Ave',          station_b_name: 'Dean St & 4 Ave',           trips_a_to_b: 1188, trips_b_to_a: 684,  abs_imbalance: 504,  pct_imbalance: '42.4', imbalance_direction: 'Mostly toward Dean St' },
+];
+
+const ALL_RANKINGS = [
+  { rank_within_flag: 1, name: 'W 21 St & 6 Ave',             flag_type: 'chronic_empty',  severity: 'high',   total_in_flag_type: 87  },
+  { rank_within_flag: 2, name: '8 Ave & W 31 St',             flag_type: 'chronic_empty',  severity: 'high',   total_in_flag_type: 87  },
+  { rank_within_flag: 3, name: 'Pike St & Monroe St',         flag_type: 'chronic_empty',  severity: 'high',   total_in_flag_type: 87  },
+  { rank_within_flag: 4, name: 'E 10 St & Avenue A',          flag_type: 'chronic_empty',  severity: 'medium', total_in_flag_type: 87  },
+  { rank_within_flag: 5, name: '11 Ave & W 27 St',            flag_type: 'chronic_empty',  severity: 'medium', total_in_flag_type: 87  },
+  { rank_within_flag: 1, name: 'Broadway & W 60 St',          flag_type: 'chronic_full',   severity: 'high',   total_in_flag_type: 54  },
+  { rank_within_flag: 2, name: 'Grand Army Plaza & Plaza St W', flag_type: 'chronic_full', severity: 'high',   total_in_flag_type: 54  },
+  { rank_within_flag: 3, name: 'Lexington Ave & E 28 St',     flag_type: 'chronic_full',   severity: 'medium', total_in_flag_type: 54  },
+  { rank_within_flag: 1, name: 'E 43 St & Vanderbilt Ave',    flag_type: 'high_imbalance', severity: 'high',   total_in_flag_type: 171 },
+  { rank_within_flag: 2, name: 'W 33 St & 7 Ave',             flag_type: 'high_imbalance', severity: 'high',   total_in_flag_type: 171 },
+  { rank_within_flag: 3, name: 'Central Park S & 6 Ave',      flag_type: 'high_imbalance', severity: 'high',   total_in_flag_type: 171 },
+  { rank_within_flag: 4, name: '1 Ave & E 62 St',             flag_type: 'high_imbalance', severity: 'high',   total_in_flag_type: 171 },
+  { rank_within_flag: 5, name: 'Pershing Square North',        flag_type: 'high_imbalance', severity: 'high',   total_in_flag_type: 171 },
+];
+
+const ALL_WORST = [
+  { name: 'W 21 St & 6 Ave',             avg_pct_empty: '61.2', avg_pct_full: '2.1',  avg_pct_unavailable: '63.3', days_sampled: 138 },
+  { name: '8 Ave & W 31 St',             avg_pct_empty: '58.7', avg_pct_full: '1.8',  avg_pct_unavailable: '60.5', days_sampled: 132 },
+  { name: 'Pike St & Monroe St',         avg_pct_empty: '54.3', avg_pct_full: '3.2',  avg_pct_unavailable: '57.5', days_sampled: 141 },
+  { name: '11 Ave & W 27 St',            avg_pct_empty: '51.8', avg_pct_full: '1.4',  avg_pct_unavailable: '53.2', days_sampled: 129 },
+  { name: 'W 110 St & Amsterdam Ave',    avg_pct_empty: '48.9', avg_pct_full: '2.9',  avg_pct_unavailable: '51.8', days_sampled: 135 },
+  { name: 'Broadway & W 60 St',          avg_pct_empty: '1.1',  avg_pct_full: '49.4', avg_pct_unavailable: '50.5', days_sampled: 144 },
+  { name: 'E 10 St & Avenue A',          avg_pct_empty: '46.2', avg_pct_full: '2.7',  avg_pct_unavailable: '48.9', days_sampled: 127 },
+  { name: 'Grand Army Plaza & Plaza St W', avg_pct_empty: '1.4', avg_pct_full: '46.8', avg_pct_unavailable: '48.2', days_sampled: 138 },
+  { name: 'Clinton Ave & Flushing Ave',  avg_pct_empty: '43.1', avg_pct_full: '3.8',  avg_pct_unavailable: '46.9', days_sampled: 122 },
+  { name: '2 Ave & E 96 St',             avg_pct_empty: '42.7', avg_pct_full: '1.9',  avg_pct_unavailable: '44.6', days_sampled: 131 },
+  { name: 'Prospect Park West & 8 St',   avg_pct_empty: '2.2',  avg_pct_full: '41.3', avg_pct_unavailable: '43.5', days_sampled: 140 },
+  { name: 'Columbia St & Kane St',       avg_pct_empty: '1.8',  avg_pct_full: '40.7', avg_pct_unavailable: '42.5', days_sampled: 118 },
+  { name: 'E 72 St & Park Ave',          avg_pct_empty: '39.4', avg_pct_full: '2.4',  avg_pct_unavailable: '41.8', days_sampled: 126 },
+  { name: 'Lexington Ave & E 28 St',     avg_pct_empty: '1.6',  avg_pct_full: '38.9', avg_pct_unavailable: '40.5', days_sampled: 133 },
+  { name: 'Dean St & 4 Ave',             avg_pct_empty: '36.8', avg_pct_full: '2.1',  avg_pct_unavailable: '38.9', days_sampled: 121 },
+  { name: 'E 53 St & Madison Ave',       avg_pct_empty: '3.1',  avg_pct_full: '35.2', avg_pct_unavailable: '38.3', days_sampled: 137 },
+  { name: 'Jay St & York St',            avg_pct_empty: '34.1', avg_pct_full: '2.9',  avg_pct_unavailable: '37.0', days_sampled: 124 },
+  { name: '1 Ave & E 62 St',             avg_pct_empty: '32.8', avg_pct_full: '3.4',  avg_pct_unavailable: '36.2', days_sampled: 130 },
+  { name: 'South St & Whitehall St',     avg_pct_empty: '4.2',  avg_pct_full: '31.1', avg_pct_unavailable: '35.3', days_sampled: 128 },
+  { name: 'Chambers St & West Side Hwy', avg_pct_empty: '30.7', avg_pct_full: '3.9',  avg_pct_unavailable: '34.6', days_sampled: 119 },
+];
+
+// ─── RENDER FUNCTIONS ─────────────────────────────────────────────────────────
+
+function renderStats() {
+  const cards = [
+    { label: 'Total Stations',  value: fmtNum(STATS.total_stations),      sub: `${fmtNum(STATS.active_stations)} active` },
+    { label: 'Total Trips',     value: fmtNum(STATS.total_trips),          sub: 'historical records' },
+    { label: 'Snapshots',       value: fmtNum(STATS.total_snapshots),      sub: 'availability records' },
+    { label: 'Active Flags',    value: fmtNum(STATS.active_flags),         sub: 'unresolved issues' },
+    { label: 'Chronic Empty',   value: fmtNum(STATS.chronic_empty_count),  sub: 'stations' },
+    { label: 'Chronic Full',    value: fmtNum(STATS.chronic_full_count),   sub: 'stations' },
+  ];
+
+  document.getElementById('stats-grid').innerHTML = cards.map((c, i) => `
+    <div class="stat-card" style="transition-delay:${i * 60}ms">
+      <div class="label">${c.label}</div>
+      <div class="value">${c.value}</div>
+      <div class="sub">${c.sub}</div>
+    </div>`).join('');
+
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.stat-card').forEach(el => el.classList.add('loaded'));
+  });
+
+  document.getElementById('date-range-bar').innerHTML = `
+    <div class="date-range">
+      <div class="date-item"><span class="dl">Snapshots from</span><span class="dv">${fmtDate(DATE_RANGE.snapshots_starts)}</span></div>
+      <div class="date-item"><span class="dl">Snapshots to</span>  <span class="dv">${fmtDate(DATE_RANGE.snapshots_ends)}</span></div>
+      <div class="date-item"><span class="dl">Trips from</span>    <span class="dv">${fmtDate(DATE_RANGE.trips_start)}</span></div>
+      <div class="date-item"><span class="dl">Trips to</span>      <span class="dv">${fmtDate(DATE_RANGE.trips_end)}</span></div>
+    </div>`;
+}
+
+function renderFlagSummary() {
+  document.getElementById('flag-summary-body').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Flag Type</th><th>Severity</th><th>Active Count</th>
+        <th>Oldest Active</th><th>Newest Active</th>
+      </tr></thead>
+      <tbody>
+        ${FLAG_SUMMARY.map(r => `<tr>
+          <td>${flagBadge(r.flag_type)}</td>
+          <td>${severityBadge(r.severity)}</td>
+          <td style="font-family:var(--mono);color:var(--accent)">${fmtNum(r.active_count)}</td>
+          <td style="color:var(--muted)">${fmtDate(r.oldest_active)}</td>
+          <td style="color:var(--muted)">${fmtDate(r.newest_active)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function renderFlags() {
+  const flagType = document.getElementById('filter-flag-type').value;
+  const severity = document.getElementById('filter-severity').value;
+  const limit    = parseInt(document.getElementById('filter-limit').value) || 50;
+
+  let rows = ALL_FLAGS;
+  if (flagType) rows = rows.filter(r => r.flag_type === flagType);
+  if (severity) rows = rows.filter(r => r.severity === severity);
+  rows = rows.slice(0, limit);
+
+  if (!rows.length) {
+    document.getElementById('flags-body').innerHTML = `<div class="state-msg">No data found</div>`;
+    return;
+  }
+
+  document.getElementById('flags-body').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Station</th><th>Short Name</th><th>Flag Type</th>
+        <th>Severity</th><th>Capacity</th><th>Detected</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r => `<tr>
+          <td>${r.name}</td>
+          <td style="font-family:var(--mono);color:var(--muted)">${r.short_name}</td>
+          <td>${flagBadge(r.flag_type)}</td>
+          <td>${severityBadge(r.severity)}</td>
+          <td style="font-family:var(--mono)">${r.capacity ?? '—'}</td>
+          <td style="color:var(--muted)">${fmtDate(r.detected_at)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function renderCorridors() {
+  const minTrips = parseInt(document.getElementById('min-trips').value) || 500;
+  const limit    = parseInt(document.getElementById('corridor-limit').value) || 20;
+
+  const rows = ALL_CORRIDORS
+    .filter(r => r.trip_count >= minTrips)
+    .slice(0, limit);
+
+  if (!rows.length) {
+    document.getElementById('corridors-body').innerHTML = `<div class="state-msg">No data found</div>`;
+    return;
+  }
+
+  document.getElementById('corridors-body').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>From</th><th>To</th><th>Trips</th><th>Avg Duration</th><th>% Member</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r => `<tr>
+          <td>${r.start_station_name}</td>
+          <td>${r.end_station_name}</td>
+          <td style="font-family:var(--mono);color:var(--accent)">${fmtNum(r.trip_count)}</td>
+          <td style="font-family:var(--mono);color:var(--muted)">${r.avg_duration_in_min} min</td>
+          <td style="font-family:var(--mono)">${r.pct_member}%</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function renderImbalance() {
+  const limit = parseInt(document.getElementById('imbalance-limit').value) || 20;
+  const rows  = ALL_IMBALANCE.slice(0, limit);
+
+  document.getElementById('imbalance-body').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Station A</th><th>Station B</th><th>A→B</th>
+        <th>B→A</th><th>Imbalance</th><th>% Imbalance</th><th>Direction</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r => {
+          const pct   = parseFloat(r.pct_imbalance);
+          const color = pct > 75 ? 'var(--accent2)' : pct > 50 ? 'var(--warn)' : 'var(--text)';
+          return `<tr>
+            <td>${r.station_a_name}</td>
+            <td>${r.station_b_name}</td>
+            <td style="font-family:var(--mono)">${fmtNum(r.trips_a_to_b)}</td>
+            <td style="font-family:var(--mono)">${fmtNum(r.trips_b_to_a)}</td>
+            <td style="font-family:var(--mono);color:var(--warn)">${fmtNum(r.abs_imbalance)}</td>
+            <td style="font-family:var(--mono);color:${color};font-weight:700">${r.pct_imbalance}%</td>
+            <td style="color:var(--muted);font-size:11px">${r.imbalance_direction}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+function renderRankings() {
+  document.getElementById('rankings-body').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Rank</th><th>Station</th><th>Flag</th><th>Severity</th><th>Total in flag type</th>
+      </tr></thead>
+      <tbody>
+        ${ALL_RANKINGS.map(r => {
+          const rankCls = r.rank_within_flag <= 3 ? `rank-${r.rank_within_flag}` : 'rank-num';
+          return `<tr>
+            <td class="${rankCls}" style="font-family:var(--mono)">#${r.rank_within_flag}</td>
+            <td>${r.name}</td>
+            <td>${flagBadge(r.flag_type)}</td>
+            <td>${severityBadge(r.severity)}</td>
+            <td style="font-family:var(--mono);color:var(--muted)">${r.total_in_flag_type}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+function renderWorst() {
+  document.getElementById('worst-body').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>#</th><th>Station</th><th>% Empty</th>
+        <th>% Full</th><th>% Total Unavailable</th><th>Days</th>
+      </tr></thead>
+      <tbody>
+        ${ALL_WORST.map((r, i) => {
+          const pct   = parseFloat(r.avg_pct_unavailable);
+          const color = pct > 50 ? 'var(--accent2)' : pct > 25 ? 'var(--warn)' : 'var(--text)';
+          return `<tr>
+            <td class="rank-num" style="font-family:var(--mono)">${i + 1}</td>
+            <td>${r.name}</td>
+            <td style="font-family:var(--mono);color:var(--accent2)">${r.avg_pct_empty}%</td>
+            <td style="font-family:var(--mono);color:var(--accent)">${r.avg_pct_full}%</td>
+            <td style="font-family:var(--mono);color:${color};font-weight:700">${r.avg_pct_unavailable}%</td>
+            <td style="font-family:var(--mono);color:var(--muted)">${r.days_sampled}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+renderStats();
+renderFlagSummary();
+renderFlags();
+renderCorridors();
+renderImbalance();
+renderRankings();
+renderWorst();
+</script>
+</body>
+</html>
