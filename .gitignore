@@ -1,6 +1,7 @@
 
 .env
 security
+.vscode/
 
 # Python
 __pycache__/
