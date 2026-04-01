@@ -2,7 +2,7 @@
 
 A data engineering project that identifies chronically problematic CitiBike stations to help operators rebalance bikes proactively rather than reactively.
 
-**Live Demo:** [your-lightsail-ip:5000] | **Stack:** PostgreSQL · Flask · Python · AWS Lightsail
+**Live Demo:** [Click Here](https://rime11.github.io/citibike-rebalancing-api/citibike_dashboard_prototype.html) | **Stack:** PostgreSQL · Flask · Python · AWS Lightsail
 
 ---
 
