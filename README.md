@@ -8,7 +8,7 @@ A data engineering project that identifies chronically problematic CitiBike stat
 
 ## The Problem
 
-CitiBike operators physically move bikes between stations using trucks, which is an expensive, reactive process. Without data, dispatchers respond to problems after they happen. This system collects real-time availability data every 5 minutes and identifies stations that are *chronically* empty, full, or imbalanced, giving operators the intelligence to act before problems occur.
+CitiBike operators physically move bikes between stations using trucks, which is an expensive, reactive process. Without data, dispatchers respond to problems after they happen. This system collects real time availability data every 5 minutes and identifies stations that are *chronically* empty, full, or imbalanced, giving operators the intelligence to act before problems occur.
 
 ---
 
@@ -28,21 +28,21 @@ python scripy                                      (one time load)
                         Python ETL Script
                                 |
                                 ▼
-                        PostgreSQL on AWS Lightsail
-                        ┌─────────────────────────────┐
-                        │  stations                   │
-                        │  availability_snapshots     │
-                        │  trips                      │
-                        │  daily_station_metrics      │
-                        │  hourly_patterns            │
-                        │  station_pairs              │
-                        │  station_status_changes     │
-                        │  rebalancing_flags          │
-                        │                             │
-                        └─────────────────────────────┘
-                                |
-                                ▼
-                        Flask API + Dashboard
+                  PostgreSQL on AWS Lightsail
+                  ┌─────────────────────────────┐
+                  │  stations                   │
+                  │  availability_snapshots     │
+                  │  trips                      │
+                  │  daily_station_metrics      │
+                  │  hourly_patterns            │
+                  │  station_pairs              │
+                  │  station_status_changes     │
+                  │  rebalancing_flags          │
+                  │                             │
+                  └─────────────────────────────┘
+                              |
+                              ▼
+                  Flask API + Dashboard
 ```
 
 ---
