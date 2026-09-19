@@ -4,6 +4,8 @@ A data engineering project that identifies chronically problematic CitiBike stat
 
 **Live Demo:** [Click Here](https://rime11.github.io/citibike-rebalancing-api/citibike_dashboard_prototype.html) | **Stack:** PostgreSQL · Flask · Python · AWS Lightsail
 
+
+**Schema** ![Alt text](sql/citibike_schema.svg)
 ---
 
 ## The Problem
