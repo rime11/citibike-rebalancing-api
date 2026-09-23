@@ -8,7 +8,7 @@ CREATE TABLE "stations" (
 );
 
 CREATE TABLE "availability_snapshots" (
-  "snapshot_id" serial PRIMARY KEY,
+  "snapshot_id" SERIAL PRIMARY KEY,
   "Station_id" varchar(50) NOT NULL,
   "captured_at" timestamp NOT NULL,
   "last_reported" timestamp,
@@ -39,18 +39,8 @@ CREATE TABLE "trips" (
   "duration_seconds" integer
 );
 
-CREATE TABLE "station_name_mapping" (
-  "mapping_id" serial PRIMARY KEY,
-  "trip_station_name" varchar(200) UNIQUE NOT NULL,
-  "trip_station_id" varchar(50),
-  "gbfs_station_id" varchar(50),
-  "match_method" varchar(20),
-  "match_confidence" decimal(3,2),
-  "created_at" timestamp
-);
-
 CREATE TABLE "daily_station_metrics" (
-  "metric_id" serial PRIMARY KEY,
+  "metric_id" SERIAL PRIMARY KEY,
   "station_id" varchar(50) NOT NULL,
   "summary_date" date NOT NULL,
   "trips_started" integer DEFAULT 0,
@@ -64,7 +54,7 @@ CREATE TABLE "daily_station_metrics" (
 );
 
 CREATE TABLE "hourly_patterns" (
-  "pattern_id" serial PRIMARY KEY,
+  "pattern_id" SERIAL PRIMARY KEY,
   "station_id" varchar(50) NOT NULL,
   "day_of_week" integer,
   "hour_of_day" integer,
@@ -75,7 +65,7 @@ CREATE TABLE "hourly_patterns" (
 );
 
 CREATE TABLE "station_pairs" (
-  "pair_id" serial PRIMARY KEY,
+  "pair_id" SERIAL PRIMARY KEY,
   "start_station_id" varchar(50) NOT NULL,
   "end_station_id" varchar(50) NOT NULL,
   "trip_count" integer NOT NULL,
@@ -86,7 +76,7 @@ CREATE TABLE "station_pairs" (
 );
 
 CREATE TABLE "rebalancing_flags" (
-  "flag_id" serial PRIMARY KEY,
+  "flag_id" SERIAL PRIMARY KEY,
   "station_id" varchar(50) NOT NULL,
   "flag_type" varchar(30) NOT NULL,
   "severity" varchar(10),
@@ -96,12 +86,12 @@ CREATE TABLE "rebalancing_flags" (
 );
 
 CREATE TABLE "station_status_changes" (
-  "change_id" serial PRIMARY KEY,
+  "change_id" SERIAL PRIMARY KEY,
   "station_id" varchar(50) NOT NULL,
   "change_type" varchar(30) NOT NULL,
   "detected_at" timestamp NOT NULL,
-  "previous_value" varchar(50),
-  "new_value" varchar(50),
+  "value_before" integer,
+  "value_after" integer,
   "snapshot_id" bigint
 );
 
@@ -111,20 +101,26 @@ CREATE UNIQUE INDEX ON "hourly_patterns" ("station_id", "day_of_week", "hour_of_
 
 CREATE UNIQUE INDEX ON "station_pairs" ("start_station_id", "end_station_id");
 
-ALTER TABLE "availability_snapshots" ADD FOREIGN KEY ("Station_id") REFERENCES "stations" ("station_id");
+CREATE INDEX "idx_changes_station_time" ON "station_status_changes" ("station_id", "detected_at");
 
-ALTER TABLE "station_name_mapping" ADD FOREIGN KEY ("gbfs_station_id") REFERENCES "stations" ("station_id");
+CREATE INDEX "idx_changes_type" ON "station_status_changes" ("change_type", "detected_at");
 
-ALTER TABLE "daily_station_metrics" ADD FOREIGN KEY ("station_id") REFERENCES "stations" ("station_id");
+COMMENT ON COLUMN "station_status_changes"."change_type" IS 'became_empty | became_full | recovered_from_empty | recovered_from_full | went_offline | came_online';
 
-ALTER TABLE "hourly_patterns" ADD FOREIGN KEY ("station_id") REFERENCES "stations" ("station_id");
+COMMENT ON COLUMN "station_status_changes"."value_before" IS 'bike or dock count; NULL for offline/online events';
 
-ALTER TABLE "station_pairs" ADD FOREIGN KEY ("start_station_id") REFERENCES "stations" ("station_id");
+ALTER TABLE "availability_snapshots" ADD FOREIGN KEY ("Station_id") REFERENCES "stations" ("station_id") DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE "station_pairs" ADD FOREIGN KEY ("end_station_id") REFERENCES "stations" ("station_id");
+ALTER TABLE "daily_station_metrics" ADD FOREIGN KEY ("station_id") REFERENCES "stations" ("station_id") DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE "rebalancing_flags" ADD FOREIGN KEY ("station_id") REFERENCES "stations" ("station_id");
+ALTER TABLE "hourly_patterns" ADD FOREIGN KEY ("station_id") REFERENCES "stations" ("station_id") DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE "station_status_changes" ADD FOREIGN KEY ("station_id") REFERENCES "stations" ("station_id");
+ALTER TABLE "station_pairs" ADD FOREIGN KEY ("start_station_id") REFERENCES "stations" ("station_id") DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE "station_status_changes" ADD FOREIGN KEY ("snapshot_id") REFERENCES "availability_snapshots" ("snapshot_id");
+ALTER TABLE "station_pairs" ADD FOREIGN KEY ("end_station_id") REFERENCES "stations" ("station_id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "rebalancing_flags" ADD FOREIGN KEY ("station_id") REFERENCES "stations" ("station_id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "station_status_changes" ADD FOREIGN KEY ("station_id") REFERENCES "stations" ("station_id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "station_status_changes" ADD FOREIGN KEY ("snapshot_id") REFERENCES "availability_snapshots" ("snapshot_id") DEFERRABLE INITIALLY IMMEDIATE;

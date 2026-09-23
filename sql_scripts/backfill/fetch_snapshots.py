@@ -1,6 +1,6 @@
 import requests
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 import time
 import os
 
@@ -18,17 +18,20 @@ with open(f"{SNAPSHOT_DIR}/station_info.json", "w") as f:
     json.dump(info, f)
 print(f"Saved station info. Starting collection loop...")
 
-#loop forever
+#loop runs forever
 while True:
     try:
-        ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        ts =  datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+
         status = requests.get(STATUS_URL, timeout=30).json()
         
         with open(f"{SNAPSHOT_DIR}/status_{ts}.json", "w") as f:
             json.dump(status, f)
         
         print(f"Captured {ts}")
+        
     except Exception as e:
-        print(f"Error at {datetime.utcnow()}: {e}")
-    #wait 5 minutes 
+        print(f"Error at {datetime.now(timezone.utc)}: {e}")
+    #run every 5 minutes    
     time.sleep(300)
+    

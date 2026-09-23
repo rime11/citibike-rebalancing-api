@@ -3,16 +3,16 @@ import json
 import psycopg2
 from datetime import datetime
 from dotenv import load_dotenv
+from pathlib import Path
 #load .env variables
-load_dotenv()
-
+load_dotenv(Path(__file__).parent / '.env'))
 
 SNAPSHOT_DIR = "/home/ubuntu/data_collection"
 DB_CONFIG = {
-    'host': os.environ.get(DB_HOST),
-    'database': os.environ.get(DB_NAME),
-    'user': os.environ.get(DB_USER),
-    'password': os.environ.get(DB_PASSW)
+    'host': os.environ.get('DB_HOST'),
+    'database': os.environ.get('DB_NAME'),
+    'user': os.environ.get('DB_USER'),
+    'password': os.environ.get('DB_PASSW')
 }
 #connect to database
 try:
@@ -61,11 +61,13 @@ for i, filename in enumerate(files):
                 bool(station.get('is_returning', 0))
             ))
         except Exception as e:
-            print(f"Error in {filename}, station {s['station_id']}: {e}")
+            print(f"Error in {filename}, station {station['station_id']}: {e}")
             conn.rollback()
             continue
     
     conn.commit()
+    os.remove(filename)  # Safe deletion from Lightsail
+    print(f"Successfully uploaded and deleted: {filename}")
     #for each 10 files print progress
     if (i + 1) % 100 == 0:
         print(f"Processed {i + 1}/{len(files)} files")
