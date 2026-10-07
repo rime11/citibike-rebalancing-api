@@ -1,13 +1,30 @@
-import os
-import json
-import psycopg2
+import os, sys, json, gzip, shutil
 from datetime import datetime, timezone
-from dotenv import load_dotenv
 from pathlib import Path
-#load .env variables
-load_dotenv(Path(__file__).parent / '.env'))
+import requests, psycopg2
+from psycopg2.extras import execute_values
+from dotenv import load_dotenv
 
-SNAPSHOT_DIR = "/home/ubuntu/data_collection"
+load_dotenv(Path(__file__).parent / '.env')
+SNAPSHOT_DIR = Path("/home/ubuntu/sql_scripts/refresh")
+ARCHIVE_DIR  = SNAPSHOT_DIR / "archive"
+ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+STATUS_URL = "https://gbfs.lyft.com/gbfs/1.1/bkn/en/station_status.json"
+captured_at = datetime.now(timezone.utc)
+ts   = captured_at.strftime("%Y%m%d_%H%M%S")
+path = SNAPSHOT_DIR / f"status_{ts}.json"
+
+try:
+    status = requests.get(STATUS_URL, timeout=30).json()
+    
+    with open(f"status_{ts}.json", "w") as f:
+        json.dump(status, f)
+        
+except Exception as e:
+    print(f"Error at {datetime.now(timezone.utc)}: {e}")
+
+###########database
+
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST'),
     'database': os.environ.get('DB_NAME'),
@@ -19,23 +36,10 @@ try:
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
     print('Connection Successful')
-
 except Exception as e:
     print(f'Could not establish connection:{e}')
-#put files into a list
-files = sorted([f for f in os.listdir(SNAPSHOT_DIR) if f.startswith('status_')])
-print(f"Found {len(files)} files")
-
-for i, filename in enumerate(files):
-    # Parse timestamp from filename: status_20250115_143025.json
-    ts_str = filename.replace('status_', '').replace('.json', '')
-    # Filenames are UTC (see fetch_snapshots.py); tag it so Postgres doesn't read it as NYC time
-    captured_at = datetime.strptime(ts_str, '%Y%m%d_%H%M%S').replace(tzinfo=timezone.utc)
-    #load json file
-    with open(os.path.join(SNAPSHOT_DIR, filename)) as f:
-        data = json.load(f)
-    
-    #extract stations in data field
+with open(f"status_{ts}.json", "r") as f:
+    data = json.dump(f)
     stations = data['data']['stations']
     
     #iterate through the stations
@@ -62,17 +66,8 @@ for i, filename in enumerate(files):
                 bool(station.get('is_returning', 0))
             ))
         except Exception as e:
-            print(f"Error in {filename}, station {station['station_id']}: {e}")
+            print(f"Error in {f}, station {station['station_id']}: {e}")
             conn.rollback()
             continue
     
     conn.commit()
-    os.remove(filename)  # Safe deletion from Lightsail
-    print(f"Successfully uploaded and deleted: {filename}")
-    #for each 10 files print progress
-    if (i + 1) % 100 == 0:
-        print(f"Processed {i + 1}/{len(files)} files")
-
-print("Done")
-cur.close()
-conn.close()

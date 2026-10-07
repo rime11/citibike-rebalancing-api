@@ -9,16 +9,18 @@
 -- keep seeing the old rows until COMMIT instead of blocking on a lock.
 --
 -- Assumes captured_at / started_at are New York local time.
--- Output: each row has a station, window(am/pm), flag, severity 
+ 
 BEGIN;
-
+ 
+DELETE FROM rebalancing_flags; --dashboard reads it so it doesn't hang during a refresh.
+ 
 WITH params AS (
     SELECT
         TIMESTAMPTZ '2026-01-15' AS date_range,
         --LOCALTIMESTAMP - INTERVAL '28 days' AS date_range, --only count last 4 weeks
         100    AS min_snapshots,       -- sample-size guard for chronic_* (per station-window)
         10.0   AS min_chronic_pct,     -- flag if empty/full in >= 10% of rush snapshots
-        4      AS min_trip_days,       -- sample-size guard for imbalance_*, for the test use 4 because sample is only 2 months
+        4      AS min_trip_days,       -- sample-size guard for imbalance_*
         50.0   AS min_imbalance_pct    -- flag if rush window drains/fills >= 50% of capacity
 ),
 --rushhour windows AM 7-9, PM 5-7

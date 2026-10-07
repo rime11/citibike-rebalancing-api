@@ -20,6 +20,7 @@ env/
 *.csv
 *.zip
 data/
+docs/
 
 # OS
 .DS_Store

@@ -30,7 +30,10 @@ INSERT INTO trips (ride_id, rideable_type, started_at, ended_at,
                    end_station_id, end_station_name,
                    start_lat, start_lng, end_lat, end_lng, member_casual)
 SELECT DISTINCT ON (ride_id)
-       ride_id, rideable_type, started_at, ended_at,
+       -- CSV times are naive NYC local time
+       ride_id, rideable_type,
+       started_at AT TIME ZONE 'America/New_York', 
+       ended_at   AT TIME ZONE 'America/New_York', 
        start_station_id, start_station_name,
        end_station_id, end_station_name,
        start_lat, start_lng, end_lat, end_lng, member_casual

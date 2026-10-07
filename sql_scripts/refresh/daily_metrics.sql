@@ -1,7 +1,8 @@
---counts by station trips started/ended  from trips per day
--- from snapshots  avg/min/max daily bikes available, %of bikes = 0(pct_time_empty) and docks = 0(%timef_ull)
--- this is the first run for daily_station_metrics table
+-- sql/jobs/daily_metrics_refresh.sql
 BEGIN;
+
+DELETE FROM daily_station_metrics
+WHERE summary_date >= CURRENT_DATE - 2;  -- recompute the last 3 days; older history untouched
 
 INSERT INTO daily_station_metrics (
     station_id, summary_date, trips_started, trips_ended,

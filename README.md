@@ -72,6 +72,18 @@ python scripy                                      (one time load)
 
 ## Database Schema
 
+availability_snapshots   (raw heartbeat, ~9.6M rows)
+        ↓  detect transitions
+station_status_changes   (events, thousands of rows)
+        ↓  pair into episodes
+station_outages          (view: start, end, duration)
+        ↓  apply thresholds
+rebalancing_flags        (verdicts, hundreds of rows)
+        ↓
+dashboard
+
+psql -d citibike -f ~/001_rebuild_station_status_changes.sql
+
 **Source tables** --> populated by ETL:
 - `stations`: station metadata from the GBFS feed (~2,400 stations)
 - `availability_snapshots`: bike/dock counts captured every 5 minutes (~9.6M rows)
