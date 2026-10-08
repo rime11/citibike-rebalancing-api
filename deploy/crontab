@@ -1,0 +1,14 @@
+# CitiBike pipeline schedule (server time zone: America/New_York)
+# Install with: crontab deploy/crontab
+
+# every 5 min: fetch + load snapshots, detect status changes
+*/5 * * * *  /home/ubuntu/citibike/scripts/collect.sh >> /home/ubuntu/citibike/logs/collect.log 2>&1
+
+# nightly 2:15am: recompute last 3 days of daily metrics
+15 2 * * *   /home/ubuntu/citibike/scripts/run_sql.sh jobs/daily_metrics_refresh.sql >> /home/ubuntu/citibike/logs/daily.log 2>&1
+
+# Monday 3:15am: rebuild rebalancing flags
+15 3 * * 1   /home/ubuntu/citibike/scripts/run_sql.sh jobs/flags_refresh.sql >> /home/ubuntu/citibike/logs/flags.log 2>&1
+
+# hourly_patterns is not scheduled; run it after each monthly trips load:
+#   /home/ubuntu/citibike/scripts/run_sql.sh jobs/hourly_patterns_refresh.sql

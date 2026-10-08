@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 from pathlib import Path
 #load .env variables
-load_dotenv(Path(__file__).parent / '.env'))
+load_dotenv(Path(__file__).parent / '.env')
 
 SNAPSHOT_DIR = "/home/ubuntu/data_collection"
 DB_CONFIG = {
