@@ -16,6 +16,21 @@
 </header>
 
 <main>
+  <!-- ── AT-RISK NOW (technician_alerts view) ------------------------------>
+  <section>
+    <div class="section-label">At-Risk Now — technician_alerts</div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Stations empty, full, or close to it</span>
+        <span id="alerts-asof" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span>
+         
+      </div>     <!-- /panel-header -->
+      <div class="filter-row" id="alerts-tabs"></div>
+      <div class="panel-body" id="alerts-body">
+        <div class="state-msg"><span class="spinner"></span>loading...</div>
+      </div>     <!-- /panel-body -->
+    </div>       <!-- /panel -->
+  </section>
 
   <!-- ── SYSTEM OVERVIEW (Queries 10 & 11) ------------------------------>
   <section>
@@ -26,12 +41,42 @@
     <div id="date-range-bar"></div>
   </section>
 
+     <!-- ── RANKINGS (Query 14) ------------------------------>
+  <section>
+    <div class="section-label">Top Problem Stations — Query 14</div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Worst stations in each flag type &amp; window</span>
+        <div class="filter-row">
+          <select id="rank-flag-type" onchange="loadRankings()">
+            <option value="">All Types</option>
+            <option value="chronic_empty">Chronic Empty</option>
+            <option value="chronic_full">Chronic Full</option>
+            <option value="imbalance_toward_empty">Drains (toward empty)</option>
+            <option value="imbalance_toward_full">Fills (toward full)</option>
+          </select>
+          <select id="rank-window" onchange="loadRankings()">
+            <option value="">All Windows</option>
+            <option value="weekday_am_rush">AM Rush (7–10)</option>
+            <option value="weekday_pm_rush">PM Rush (17–20)</option>
+          </select>
+          <label style="font-family:var(--mono);font-size:10px;color:var(--muted)">Top</label>
+          <input type="number" id="rank-per-group" value="3" min="1" max="20" style="width:60px" title="Stations per group">
+          <button onclick="loadRankings()">Apply</button>
+        </div>   <!-- /filter-row -->
+      </div>     <!-- /panel-header -->
+      <div class="panel-body" id="rankings-body">
+        <div class="state-msg"><span class="spinner"></span>loading...</div>
+      </div>     <!-- /panel-body -->
+    </div>       <!-- /panel -->
+  </section>
+
   <!----FLAG SUMMARY (Query 9) ------------------------------>
   <section>
     <div class="section-label">Flag Summary — Query 9</div>
     <div class="panel">
       <div class="panel-header">
-        <span class="panel-title">  Severity</span>
+        <span class="panel-title">  Flagged Stations per Flag Type</span>
       </div>
       <div class="panel-body" id="flag-summary-body">
         <div class="state-msg"><span class="spinner"></span>loading...</div>
@@ -41,16 +86,22 @@
 
   <!----FLAGGED STATIONS (Query 8) ------------------------------>
   <section>
-    <div class="section-label">Flagged Stations — Query 8</div>
+    <div class="section-label">Rush-Hour Trouble Stations — Query 8</div>
     <div class="panel">
       <div class="panel-header">
-        <span class="panel-title">Active Problem Stations</span>
+        <span class="panel-title">Ranked by median outage minutes</span>
         <div class="filter-row">
           <select id="filter-flag-type" onchange="loadFlags()">
             <option value="">All Types</option>
             <option value="chronic_empty">Chronic Empty</option>
             <option value="chronic_full">Chronic Full</option>
-            <option value="high imbalance">High Imbalance</option>
+            <option value="imbalance_toward_empty">Drains (toward empty)</option>
+            <option value="imbalance_toward_full">Fills (toward full)</option>
+          </select>
+          <select id="filter-window" onchange="loadFlags()">
+            <option value="">All Windows</option>
+            <option value="weekday_am_rush">AM Rush (7–10)</option>
+            <option value="weekday_pm_rush">PM Rush (17–20)</option>
           </select>
           <select id="filter-severity" onchange="loadFlags()">
             <option value="">All Severities</option>
@@ -58,69 +109,20 @@
             <option value="medium">Medium</option>
             <option value="low">Low</option>
           </select>
-          <input type="number" id="filter-limit" value="50" min="5" max="500"
-                 style="width:70px" title="Max rows">
+          <input type="number" id="filter-limit" value="50" min="5" max="500" style="width:70px" title="Max rows">
           <button onclick="loadFlags()">Apply</button>
-        </div>
-      </div>
+        </div>   <!-- /filter-row -->
+      </div>     <!-- /panel-header -->
       <div class="panel-body" id="flags-body">
         <div class="state-msg"><span class="spinner"></span>loading...</div>
-      </div>
-    </div>
+      </div>     <!-- /panel-body -->
+    </div>       <!-- /panel -->
   </section>
+ 
 
-    <!----BUSIEST CORRIDORS (Query 12) ──────────────────────── -->
-  <section>
-    <div class="section-label">Busiest Corridors — Query 12</div>
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title">Top Station-Pair Routes by Volume</span>
-        <div class="filter-row">
-          <label style="font-family:var(--mono);font-size:10px;color:var(--muted)">Min trips</label>
-          <input type="number" id="min-trips" value="500" min="1" style="width:80px">
-          <label style="font-family:var(--mono);font-size:10px;color:var(--muted)">Limit</label>
-          <input type="number" id="corridor-limit" value="20" min="5" max="100" style="width:60px">
-          <button onclick="loadCorridors()">Apply</button>
-        </div>
-      </div>
-      <div class="panel-body" id="corridors-body">
-        <div class="state-msg"><span class="spinner"></span>loading...</div>
-      </div>
-    </div>
-  </section>
-
-  <!----BUSIEST CORRIDORS (Query 13) ──────────────────────── -->
-  <section>
-  <div class="section-label">Bidirectional Imbalance — Query 13</div>
-  <div class="panel">
-    <div class="panel-header">
-      <span class="panel-title">Traffic Imbalance Between Station Pairs</span>
-      <div class="filter-row">
-        <label style="font-family:var(--mono);font-size:10px;color:var(--muted)">Limit</label>
-        <input type="number" id="imbalance-limit" value="20" min="5" max="100" style="width:60px">
-        <button onclick="loadImbalance()">Apply</button>
-      </div>
-    </div>
-    <div class="panel-body" id="imbalance-body">
-      <div class="state-msg"><span class="spinner"></span>loading...</div>
-    </div>
-  </div>
-</section>
-
-  <!----TWO-COL: RANKINGS (14) + WORST AVAILABILITY (15) ──── -->
+  <!---- RANKINGS (14) + WORST AVAILABILITY (15) ──── -->
   <div class="two-col">
 
-    <section>
-      <div class="section-label">Problem Station Rankings — Query 14</div>
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">Ranked by Severity &amp; Age</span>
-        </div>
-        <div class="panel-body" id="rankings-body">
-          <div class="state-msg"><span class="spinner"></span>loading...</div>
-        </div>
-      </div>
-    </section>
 
     <section>
       <div class="section-label">Worst Availability — Query 15</div>
@@ -182,13 +184,13 @@ async function loadStats() {
 
   // 2. Structure data for the dashboard cards
     const cards = [
-      { label: 'Total Stations',  value: fmtNum(c.total_stations),     sub: `${fmtNum(c.active_stations)} active` },
-      { label: 'Total Trips',     value: fmtNum(c.total_trips),         sub: 'historical records' },
-      { label: 'Snapshots',       value: fmtNum(c.total_snapshots),     sub: 'availability records' },
-      { label: 'Active Flags',    value: fmtNum(c.active_flags),        sub: 'unresolved issues' },
-      { label: 'Chronic Empty',   value: fmtNum(c.chronic_empty_count), sub: 'stations' },
-      { label: 'Chronic Full',    value: fmtNum(c.chronic_full_count),  sub: 'stations' },
-    ];
+      { label: 'Total Stations',   value: fmtNum(c.total_stations),      sub: 'in system' },
+      { label: 'Total Trips',      value: fmtNum(c.total_trips),         sub: 'historical records' },
+      { label: 'Snapshots',        value: fmtNum(c.total_snapshots),     sub: 'availability records' },
+      { label: 'Flagged Stations', value: fmtNum(c.active_flags),        sub: `flags as of ${fmtDateShort(c.flags_computed_at)}` },
+      { label: 'Chronic Empty',    value: fmtNum(c.chronic_empty_count), sub: 'stations, weekday rush' },
+      { label: 'Chronic Full',     value: fmtNum(c.chronic_full_count),  sub: 'stations, weekday rush' },
+];
        // 3. Render cards into #stats-grid with staggered animation delay
     document.getElementById('stats-grid').innerHTML = cards.map((c, i) => `
       <div class="stat-card" style="transition-delay:${i * 60}ms">
@@ -226,17 +228,21 @@ async function loadFlagSummary() {
     document.getElementById('flag-summary-body').innerHTML = `
       <table>
         <thead><tr>
-          <th>Flag Type</th><th>Severity</th><th>Active Count</th>
-          <th>Oldest Active</th><th>Newest Active</th>
+          <th>Flag Type</th><th>Window</th><th>Severity</th><th>Stations</th><th>Avg Metric</th>
         </tr></thead>
         <tbody>
-          ${rows.map(r => `<tr>        
-            <td>${flagBadge(r.flag_type)}</td>
-            <td>${severityBadge(r.severity)}</td>
-            <td style="font-family:var(--mono);color:var(--accent)">${fmtNum(r.active_count)}</td>
-            <td style="color:var(--muted)">${fmtDateShort(r.oldest_active)}</td>
-            <td style="color:var(--muted)">${fmtDateShort(r.newest_active)}</td>
-          </tr>`).join('')}
+          ${rows.map(r => {
+  // metric_value means different things per flag type, so label the unit
+  const unit = r.flag_type.startsWith('chronic') ? '% of rush snapshots' : '% of capacity';
+  const windowText = r.window_label.replace('weekday_', '').replace('_', ' ');  // "am rush"
+  return `<tr>
+    <td>${flagBadge(r.flag_type)}</td>
+    <td style="font-family:var(--mono);color:var(--muted)">${windowText}</td>
+    <td>${severityBadge(r.severity)}</td>
+    <td style="font-family:var(--mono);color:var(--accent)">${fmtNum(r.station_count)}</td>
+    <td style="font-family:var(--mono)">${r.avg_metric_value} <span style="color:var(--muted)">${unit}</span></td>
+  </tr>`;
+}).join('')}
         </tbody>
       </table>`;
   } catch(e) {
@@ -246,14 +252,18 @@ async function loadFlagSummary() {
 
 // ---Query 8 — flagged stations ------------------------------------------------
 async function loadFlags() {
+
   document.getElementById('flags-body').innerHTML = `<div class="state-msg"><span class="spinner"></span>loading...</div>`;
-  //filters
+
+  // filters
   const flagType = document.getElementById('filter-flag-type').value;
+  const win      = document.getElementById('filter-window').value;   // not "window": that's the browser's global
   const severity = document.getElementById('filter-severity').value;
   const limit    = document.getElementById('filter-limit').value || 50;
 
   let url = `/api/flags?limit=${limit}`;
   if (flagType) url += `&flag_type=${flagType}`;
+  if (win)      url += `&window=${win}`;
   if (severity) url += `&severity=${severity}`;
 
   try {
@@ -263,18 +273,24 @@ async function loadFlags() {
     document.getElementById('flags-body').innerHTML = `
       <table>
         <thead><tr>
-          <th>Station</th><th>Short Name</th><th>Flag Type</th>
-          <th>Severity</th><th>Capacity</th><th>Detected</th>
+          <th>Station</th><th>Flag</th><th>Window</th><th>Severity</th>
+          <th>Metric</th><th>Median Outage</th><th>Outages</th>
         </tr></thead>
         <tbody>
-          ${rows.map(r => `<tr>
-            <td>${r.name}</td>
-            <td style="font-family:var(--mono);color:var(--muted)">${r.short_name}</td>
-            <td>${flagBadge(r.flag_type)}</td>
-            <td>${severityBadge(r.severity)}</td>
-            <td style="font-family:var(--mono)">${r.capacity ?? '—'}</td>
-            <td style="color:var(--muted)">${fmtDateShort(r.detected_at)}</td>
-          </tr>`).join('')}
+          ${rows.map(r => {
+            const unit       = r.flag_type.startsWith('chronic') ? '% of rush snapshots' : '% of capacity';
+            const windowText = r.window_label.replace('weekday_', '').replace('_', ' ');
+            const median     = r.median_outage_minutes == null ? '—' : `${r.median_outage_minutes} min`;
+            return `<tr>
+              <td>${r.name} <span style="font-family:var(--mono);color:var(--muted)">${r.short_name ?? ''}</span></td>
+              <td>${flagBadge(r.flag_type)}</td>
+              <td style="font-family:var(--mono);color:var(--muted)">${windowText}</td>
+              <td>${severityBadge(r.severity)}</td>
+              <td style="font-family:var(--mono)">${r.metric_value} <span style="color:var(--muted)">${unit}</span></td>
+              <td style="font-family:var(--mono);color:var(--accent)">${median}</td>
+              <td style="font-family:var(--mono)">${r.outage_count ?? '—'}</td>
+            </tr>`;
+          }).join('')}
         </tbody>
       </table>`;
   } catch(e) {
@@ -282,91 +298,103 @@ async function loadFlags() {
   }
 }
 
-// ---Query 12 — busiest corridors ------------------------------------------------
-async function loadCorridors() {
-  document.getElementById('corridors-body').innerHTML = `<div class="state-msg"><span class="spinner"></span>loading...</div>`;
-  const minTrips = document.getElementById('min-trips').value || 500;
-  const limit    = document.getElementById('corridor-limit').value || 20;
+// ---Query 13: At-risk now — technician_alerts view ------------------------------------------------
+let alertsStatus = 'empty';   // which status the list is showing; changed by the buttons
 
-  try {
-    const data = await apiFetch(`/api/corridors?min_trips=${minTrips}&limit=${limit}`);
-    const rows = data;
-    if (!rows.length) { document.getElementById('corridors-body').innerHTML = empty(); return; }
 
-    document.getElementById('corridors-body').innerHTML = `
-      <table>
-        <thead><tr>
-          <th>From</th><th>To</th><th>Trips</th><th>Avg Duration</th><th>% Member</th>
-        </tr></thead>
-        <tbody>
-          ${rows.map(r => `<tr>
-            <td>${r.start_station_name}</td>
-            <td>${r.end_station_name}</td>
-            <td style="font-family:var(--mono);color:var(--accent)">${fmtNum(r.trip_count)}</td>
-            <td style="font-family:var(--mono);color:var(--muted)">${r.avg_duration_in_min} min</td>
-            <td style="font-family:var(--mono)">${r.pct_member}%</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>`;
-  } catch(e) {
-    document.getElementById('corridors-body').innerHTML = err(e.message);
-  }
+function statusBadge(s) {
+  const cls = { empty: 'badge-empty', full: 'badge-full',
+                near_empty: 'badge-medium', near_full: 'badge-medium' }[s] || '';
+  return `<span class="badge ${cls}">${s.replace('_', ' ')}</span>`;
 }
-// ── Query 13 — bidirectional imbalance ────────────────────────────────────────
-async function loadImbalance() {
-  document.getElementById('imbalance-body').innerHTML = `<div class="state-msg"><span class="spinner"></span>loading...</div>`;
-  const limit = document.getElementById('imbalance-limit').value || 20;
+let alertCounts = {};   // last counts from the server: { empty: 120, full: 45, ... }
 
+function renderAlertTabs() {
+  const order = ['empty', 'full', 'near_empty', 'near_full'];
+  document.getElementById('alerts-tabs').innerHTML = order.map(s => `
+    <button onclick="alertsStatus='${s}'; loadAlerts();"
+            style="${s === alertsStatus ? 'background:var(--accent);color:var(--bg)' : ''}">
+      ${s.replace('_', ' ')} ${alertCounts[s] ?? 0}
+    </button>`).join('');
+}
+
+async function loadAlertCounts() {
+  const counts = await apiFetch('/api/at_risk/summary');
+  alertCounts = Object.fromEntries(counts.map(c => [c.status, c.n]));
+}
+
+async function loadAlerts(refreshCounts = false) {
   try {
-    const rows = await apiFetch(`/api/corridors/imbalance?limit=${limit}`);
-    if (!rows.length) { document.getElementById('imbalance-body').innerHTML = empty(); return; }
+    document.getElementById('alerts-body').innerHTML = '<div class="loading"><span class="spinner"></span> Loading…</div>';
+    if (refreshCounts) await loadAlertCounts();
+    renderAlertTabs();
+    const rows = await apiFetch(`/api/at_risk?status=${alertsStatus}&limit=10`);
 
-    document.getElementById('imbalance-body').innerHTML = `
+    document.getElementById('alerts-asof').textContent = rows.length
+      ? `as of ${new Date(rows[0].as_of).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} NYC`
+      : '';
+
+    if (!rows.length) { document.getElementById('alerts-body').innerHTML = empty(); return; }
+
+    document.getElementById('alerts-body').innerHTML = `
       <table>
         <thead><tr>
-          <th>Station A</th><th>Station B</th><th>A→B</th>
-          <th>B→A</th><th>Imbalance</th><th>% Imbalance</th><th>Direction</th>
+          <th>Station</th><th>Status</th><th>Bikes / Docks</th><th>For</th><th>Chronic</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => {
-            const pct   = parseFloat(r.pct_imbalance);
-            const color = pct > 75 ? 'var(--accent2)' : pct > 50 ? 'var(--warn)' : 'var(--text)';
+            const minutes     = r.minutes_in_status == null ? '—' : `${fmtNum(r.minutes_in_status)} min`;
+            const chronic     = r.status.endsWith('empty') ? r.chronic_empty_pct : r.chronic_full_pct;
+            const chronicText = chronic == null ? '—' : `${chronic}% of rush checks`;
             return `<tr>
-              <td>${r.station_a_name}</td>
-              <td>${r.station_b_name}</td>
-              <td style="font-family:var(--mono)">${fmtNum(r.trips_a_to_b)}</td>
-              <td style="font-family:var(--mono)">${fmtNum(r.trips_b_to_a)}</td>
-              <td style="font-family:var(--mono);color:var(--warn)">${fmtNum(r.abs_imbalance)}</td>
-              <td style="font-family:var(--mono);color:${color};font-weight:700">${r.pct_imbalance}%</td>
-              <td style="color:var(--muted);font-size:11px">${r.imbalance_direction}</td>
+              <td>${r.name} <span style="font-family:var(--mono);color:var(--muted)">${r.short_name ?? ''}</span></td>
+              <td>${statusBadge(r.status)}</td>
+              <td style="font-family:var(--mono)">${r.bikes} / ${r.docks}</td>
+              <td style="font-family:var(--mono);color:var(--accent)">${minutes}</td>
+              <td style="font-family:var(--mono);color:var(--muted)">${chronicText}</td>
             </tr>`;
           }).join('')}
         </tbody>
       </table>`;
   } catch(e) {
-    document.getElementById('imbalance-body').innerHTML = err(e.message);
+    document.getElementById('alerts-body').innerHTML = err(e.message);
   }
 }
-// ---Query 14 — problem station rankings ------------------------------------------------
+
+// ---Query 14 — top problem stations per flag type + window ------------------------
 async function loadRankings() {
+  document.getElementById('rankings-body').innerHTML = `<div class="state-msg"><span class="spinner"></span>loading...</div>`;
+
+  // filters (rank- prefix: these ids belong to this panel only)
+  const flagType = document.getElementById('rank-flag-type').value;
+  const win      = document.getElementById('rank-window').value;
+  const perGroup = document.getElementById('rank-per-group').value || 3;
+
+  let url = `/api/rankings?per_group=${perGroup}`;
+  if (flagType) url += `&flag_type=${flagType}`;
+  if (win)      url += `&window=${win}`;
+
   try {
-    const rows = await apiFetch('/api/rankings');
+    const rows = await apiFetch(url);
     if (!rows.length) { document.getElementById('rankings-body').innerHTML = empty(); return; }
 
     document.getElementById('rankings-body').innerHTML = `
       <table>
         <thead><tr>
-          <th>Rank</th><th>Station</th><th>Flag</th><th>Severity</th><th>Total in flag type</th>
+          <th>Flag</th><th>Window</th><th>Rank</th><th>Station</th><th>Severity</th><th>Median Outage</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => {
-            const rankCls = r.rank_within_flag <= 3 ? `rank-${r.rank_within_flag}` : 'rank-num';
+            const windowText = r.window_label.replace('weekday_', '').replace('_', ' ');
+            const rankCls    = r.rank_in_group <= 3 ? `rank-${r.rank_in_group}` : 'rank-num';
+            const median     = r.median_outage_minutes == null ? '—' : `${r.median_outage_minutes} min`;
             return `<tr>
-              <td class="${rankCls}" style="font-family:var(--mono)">#${r.rank_within_flag}</td>
-              <td>${r.name}</td>
               <td>${flagBadge(r.flag_type)}</td>
+              <td style="font-family:var(--mono);color:var(--muted)">${windowText}</td>
+              <td class="${rankCls}" style="font-family:var(--mono)">#${r.rank_in_group} of ${r.group_size}</td>
+              <td>${r.name}</td>
               <td>${severityBadge(r.severity)}</td>
-              <td style="font-family:var(--mono);color:var(--muted)">${r.total_in_flag_type}</td>
+              <td style="font-family:var(--mono);color:var(--accent)">${median}</td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -411,13 +439,13 @@ async function loadWorst() {
 
 
 // ── boot — load all panels on page load ------------------------------------------------
+loadAlerts(true)
 loadStats();
+loadRankings();
 loadFlagSummary();
 loadFlags();
-loadCorridors();
-loadRankings();
 loadWorst();
-loadImbalance();
+
 
 </script>
 </body>

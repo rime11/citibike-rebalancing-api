@@ -101,20 +101,6 @@ CREATE TABLE hourly_patterns (
     CONSTRAINT uq_hourly_station_dow_hour UNIQUE (station_id, day_of_week, hour_of_day)
 );
 
-CREATE TABLE station_pairs (
-    pair_id               SERIAL PRIMARY KEY,
-    start_station_id      VARCHAR(50) NOT NULL
-                          REFERENCES stations(station_id) DEFERRABLE INITIALLY IMMEDIATE,
-    end_station_id        VARCHAR(50) NOT NULL
-                          REFERENCES stations(station_id) DEFERRABLE INITIALLY IMMEDIATE,
-    trip_count            INTEGER NOT NULL CHECK (trip_count > 0),
-    avg_duration_seconds  INTEGER,
-    member_trips          INTEGER NOT NULL DEFAULT 0,
-    casual_trips          INTEGER NOT NULL DEFAULT 0,
-    computed_at           TIMESTAMPTZ NOT NULL DEFAULT LOCALTIMESTAMP,
-    CONSTRAINT uq_pairs_start_end UNIQUE (start_station_id, end_station_id)
-);
-CREATE UNIQUE INDEX ON "station_pairs" ("start_station_id", "end_station_id");
 
 CREATE TABLE rebalancing_flags (
     flag_id                SERIAL PRIMARY KEY,
@@ -159,7 +145,7 @@ next_event AS (
         outage_type,
         is_start,
         detected_at,
-        LEAD(is_start)    OVER w AS next_is_start, --is the next event a start
+        LEAD(is_start) OVER w AS next_is_start, --is the next event a start
         LEAD(detected_at) OVER w AS next_start
     FROM events
     WINDOW w AS (PARTITION BY station_id, outage_type ORDER BY detected_at)
@@ -202,5 +188,67 @@ COMMENT ON VIEW station_outages IS
   'Ongoing episodes have ended_at NULL and minutes_out measured to now. '
   'overlaps_offline marks empty/full episodes contaminated by station downtime; exclude them from rebalancing metrics.';
  
+CREATE OR REPLACE VIEW technician_alerts AS
+WITH latest AS (
+    -- newest snapshot per station, only if it is part of the latest collection run (last hapf hour)
+    SELECT DISTINCT ON (station_id)
+        station_id, 
+        captured_at,
+        num_bikes_available AS bikes,
+        num_docks_available AS docks,
+        is_renting
+    FROM availability_snapshots
+    WHERE captured_at > (SELECT MAX(captured_at) FROM availability_snapshots) - INTERVAL '30 minutes'
+    ORDER BY station_id, captured_at DESC
+),
+classified AS (
+    SELECT
+        l.*, s.station_name AS name, s.short_name, s.capacity,
+        CASE
+            WHEN l.is_renting IS NOT TRUE THEN NULL            -- offline: a repair problem, not a van problem
+            WHEN l.bikes = 0 THEN 'empty'
+            WHEN l.docks = 0 THEN 'full'
+            WHEN l.bikes <= GREATEST(2, 0.10 * s.capacity) THEN 'near_empty'
+            WHEN l.docks <= GREATEST(2, 0.10 * s.capacity) THEN 'near_full'
+        END AS status
+    FROM latest l
+    JOIN stations s ON s.station_id = l.station_id
+),
+/*
+ongoing AS (
+    SELECT station_id, outage_type, started_at
+    FROM station_outages
+    WHERE is_ongoing AND NOT overlaps_offline
+),*/
+reputation AS (
+    SELECT
+        station_id,
+        MAX(metric_value) FILTER (WHERE flag_type = 'chronic_empty') AS chronic_empty_pct,
+        MAX(metric_value) FILTER (WHERE flag_type = 'chronic_full')  AS chronic_full_pct
+    FROM rebalancing_flags
+    GROUP BY station_id
+)
+SELECT
+    c.station_id, c.name, c.short_name, c.capacity,
+    c.status, c.bikes, c.docks,
+    c.captured_at  AS as_of,
+    CASE WHEN ev.change_type = 'became_' || c.status
+         THEN ROUND(EXTRACT(EPOCH FROM (c.captured_at - ev.detected_at)) / 60.0)
+    END AS minutes_in_status,   
+    r.chronic_empty_pct,
+    r.chronic_full_pct
+FROM classified c
+LEFT JOIN LATERAL (
+    SELECT ch.change_type, ch.detected_at
+    FROM station_status_changes ch
+    WHERE ch.station_id = c.station_id
+      AND ch.change_type IN ('became_empty','recovered_from_empty','became_full','recovered_from_full')
+    ORDER BY ch.detected_at DESC
+    LIMIT 1
+) ev ON c.status IN ('empty','full')
+LEFT JOIN reputation r ON r.station_id = c.station_id
+WHERE c.status IS NOT NULL;
+
+
 COMMIT;
  

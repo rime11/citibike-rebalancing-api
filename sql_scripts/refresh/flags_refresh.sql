@@ -16,39 +16,65 @@ DELETE FROM rebalancing_flags; --dashboard reads it so it doesn't hang during a 
  
 WITH params AS (
     SELECT
+
         TIMESTAMPTZ '2026-01-15' AS date_range,
-        --LOCALTIMESTAMP - INTERVAL '28 days' AS date_range, --only count last 4 weeks
+        TIMESTAMPTZ '2026-01-30' AS end_date,
         100    AS min_snapshots,       -- sample-size guard for chronic_* (per station-window)
         10.0   AS min_chronic_pct,     -- flag if empty/full in >= 10% of rush snapshots
         4      AS min_trip_days,       -- sample-size guard for imbalance_*
         50.0   AS min_imbalance_pct    -- flag if rush window drains/fills >= 50% of capacity
+         -- Live weekly job (rolling window): swap in these two lines instead
+        -- (CURRENT_DATE - 28)::timestamptz AS date_range,
+        -- CURRENT_DATE::timestamptz AS end_date,   -- exclusive: through yesterday      
 ),
 --rushhour windows AM 7-9, PM 5-7
 windows (window_label, h_start, h_end) AS (
     VALUES ('weekday_am_rush', 7, 9),
            ('weekday_pm_rush', 17, 19)
 ),
- 
+
+filtered_date_series AS (
+    -- Step 1: Generate the raw list of dates
+    SELECT d
+    FROM (
+            SELECT generate_series(date_range::date, (end_date - INTERVAL '1 day')::date, INTERVAL '1 day')::date::timestamp AS d
+            FROM params
+        ) sub
+    WHERE EXTRACT(ISODOW FROM d) <= 5
+),
+
+rush_periods AS (
+      -- one row per weekday per rush window, as real timestamps
+SELECT 
+    w.window_label, 
+    f.d + make_interval(hours => w.h_start) AS period_start, 
+    f.d + make_interval(hours => w.h_end + 1) AS period_end
+FROM filtered_date_series f
+CROSS JOIN windows w
+),
+
 -- How often: share of in service rush snapshots at 0 bikes / 0 docks.
 -- Out of service snapshots are excluded so broken stations don't read as empty.
 snap AS (
     SELECT
         s.station_id,
         w.window_label,
-        COUNT(*) FILTER (WHERE s.is_installed IS TRUE AND s.is_renting IS TRUE)             AS n_renting,
+        COUNT(*) FILTER (WHERE s.is_installed IS TRUE AND s.is_renting IS TRUE) AS n_renting,
         COUNT(*) FILTER (WHERE s.is_installed IS TRUE AND s.is_renting IS TRUE
-                           AND s.num_bikes_available = 0)                                    AS n_empty,
-        COUNT(*) FILTER (WHERE s.is_installed IS TRUE AND s.is_returning IS TRUE)           AS n_returning,
+                                    AND s.num_bikes_available = 0) AS n_empty,
+        COUNT(*) FILTER (WHERE s.is_installed IS TRUE AND s.is_returning IS TRUE) AS n_returning,
         COUNT(*) FILTER (WHERE s.is_installed IS TRUE AND s.is_returning IS TRUE
-                           AND s.num_docks_available = 0)                                    AS n_full
+                                    AND s.num_docks_available = 0) AS n_full
     FROM availability_snapshots s
     CROSS JOIN params p
     JOIN windows w
       ON EXTRACT(HOUR FROM s.captured_at) BETWEEN w.h_start AND w.h_end
     WHERE s.captured_at >= p.date_range
-      AND EXTRACT(ISODOW FROM s.captured_at) <= 5 --weekday
+        AND s.captured_at <  p.end_date
+        AND EXTRACT(ISODOW FROM s.captured_at) <= 5 --weekday
     GROUP BY s.station_id, w.window_label
 ),
+
 chronic AS (
     SELECT station_id, window_label, 'chronic_empty' AS flag_type, 'empty' AS outage_type,
            100.0 * n_empty / n_renting AS pct
@@ -63,6 +89,8 @@ chronic AS (
  
 -- How long: outages that START in the rush window. Excludes ongoing episodes
 -- (duration truncated) and ones overlapping downtime (a van can't fix those).
+--An outage that starts at 6:00 fails that test even though it lasts the whole rush.
+/*
 outages AS (
     SELECT
         o.station_id,
@@ -81,6 +109,35 @@ outages AS (
       AND EXTRACT(ISODOW FROM o.started_at) <= 5
     GROUP BY o.station_id, w.window_label, o.outage_type
 ),
+*/
+
+outage_windows AS (
+    -- each outage that OVERLAPS a rush period, counted once per window_label
+    -- (an episode spanning two mornings is still one outage)
+    SELECT DISTINCT
+        o.station_id, o.outage_type, o.started_at, o.minutes_out, rp.window_label
+    FROM station_outages o --the view
+    CROSS JOIN params p
+    JOIN rush_periods rp
+      ON o.started_at < rp.period_end
+     AND o.ended_at   > rp.period_start
+    WHERE o.outage_type IN ('empty', 'full')
+      AND NOT o.is_ongoing
+      AND NOT o.overlaps_offline
+      AND o.started_at >= p.date_range
+),
+outages AS (
+    SELECT
+        station_id,
+        window_label,
+        outage_type, 
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY minutes_out) AS median_minutes,
+        COUNT(*) AS n_outages
+    FROM outage_windows
+    GROUP BY station_id, window_label, outage_type
+),
+
+
  
 -- Which way: average net bikes over the window per weekday, relative to capacity.
 -- AM and PM are separate windows on purpose: a commuter station that drains in the

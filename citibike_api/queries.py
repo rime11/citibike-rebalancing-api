@@ -1,4 +1,5 @@
 '''
+5,6,12,13
 15 complex SQL queries for CitiBike Rebalancing Analysis API
 Each function maps to one or more numbered queries
 
@@ -30,7 +31,7 @@ use COALESCE function which replaces the no entry with none instead of throwing 
     )
     SELECT s.station_id,
         s.short_name,
-        s.name,
+        s.station_name,
         s.latitude,
         s.longitude,
         s.capacity,
@@ -57,7 +58,7 @@ and then print status if no bikes are available then print 'empty', no docks ava
     sql = '''
     SELECT 
         a.station_id,
-        s.name,
+        s.station_name,
         a.num_bikes_available,
         a.num_ebikes_available,
         a.num_docks_available, 
@@ -139,50 +140,6 @@ def get_hourly_demand_patterns(station_id:str)->list:
     '''
     return query_db(sql, {'station_id':station_id})
 
-def get_top_outbound_destinations(short_name:str)->list:
-    '''
-Query 5: Top outbound destinations:
-
-where do riders go from given station. 
-filters on start_station_id and joins on end_station_id
-Use station_pairs table, which uses short_name for start_station_id and end_station_id
-NULLIF for safe division
-    '''
-    sql = '''
-    SELECT 
-        sp.end_station_id,
-        s.name AS destination_name,
-        sp.trip_count,
-        sp.avg_duration_seconds,
-        ROUND(100 * sp.member_trips / NULLIF(sp.trip_count,0),2) AS pct_member_trips
-    FROM station_pairs sp
-    JOIN stations s ON s.short_name = sp.end_station_id
-    WHERE sp.start_station_id = :short_name
-    ORDER BY sp.trip_count DESC;
-'''
-    return(query_db(sql,{'short_name':short_name})) 
-
-def get_top_inbound_origins(short_name:str)->list:
-    '''
-    Query 6: Top inbound origins: 
-    
-    where do riders come from to given station
-    mirrors query 5 but filters on end_station_id and joins on start_station_id
-    short_name is used for the station
-    '''
-    sql = '''
-    SELECT sp.start_station_id,
-        s.name AS origin_name,
-        sp.trip_count,
-        sp.avg_duration_seconds,
-        ROUND(100 * sp.member_trips / NULLIF(sp.trip_count,0),2) AS pct_member_trips
-    FROM station_pairs sp
-    JOIN stations s ON s.short_name = sp.start_station_id
-    WHERE sp.end_station_id = :short_name
-    ORDER BY sp.trip_count DESC;
-    '''
-    return query_db(sql, {'short_name':short_name})
-
 
 def get_status_changes(station_id: str) -> list:
     '''
@@ -215,70 +172,70 @@ def get_status_changes(station_id: str) -> list:
 # FLAG QUERIES
 # ______________________________
 
-def get_flagged_stations(flag_type: str = None, severity: str = None, limit: int = 100)->list:
+def get_flagged_stations(flag_type: str = None, severity: str = None, window: str = None, limit: int = 50)->list:
     '''
-    Query 8: Flagged stations list
+    Query 8: Rush-hour trouble stations, ranked by how long outages last.
 
-    Lists active problematic stations from the Rebalancing_flags table 
-    Query params:
-    flag_type  chronic_empty | chronic_full | high_imbalance
-    severity   high | medium | low
-    limit      integer, default 50, max 500
+    Filters (all optional): flag_type, severity, window (weekday_am_rush | weekday_pm_rush).
+    Ranking: median_outage_minutes first (chronic_* only; NULLS LAST), then the size of
+    metric_value, so imbalance_* rows (no outage minutes) rank by how strongly they drift.
+    CAST(... AS text) gives Postgres a type for a NULL parameter, so "no filter" works
+    with any driver.
     '''
     sql = '''
-    SELECT s.station_id,
-        s.name,
+        SELECT
+        s.station_id,
+        s.station_name AS name,
         s.short_name,
+        s.capacity,
         rf.flag_type,
+        rf.window_label,
         rf.severity,
-        s.latitude,
-        s.longitude,
-        rf.detected_at,
-        CASE 
-            WHEN resolved_at IS NULL THEN 'active'
-            ELSE 'resolved'
-        END AS resolution_status,
-        s.capacity
+        rf.metric_value,
+        rf.median_outage_minutes,
+        rf.outage_count
     FROM rebalancing_flags rf
-    LEFT JOIN stations s ON rf.station_id = s.station_id
-    WHERE (rf.flag_type = :flag_type OR :flag_type IS NULL)
-        AND (rf.severity= :severity OR :severity IS NULL)
-        AND resolved_at IS NULL --active
-    ORDER BY 
-    CASE 
-            WHEN rf.severity = 'high' THEN 1
-            WHEN rf.severity = 'medium' THEN 2
-            ELSE 3
-    END,
-    detected_at DESC
+    JOIN stations s ON s.station_id = rf.station_id
+    WHERE (CAST(:flag_type AS text) IS NULL OR rf.flag_type    = :flag_type)
+      AND (CAST(:severity  AS text) IS NULL OR rf.severity     = :severity)
+      AND (CAST(:window    AS text) IS NULL OR rf.window_label = :window)
+    ORDER BY
+        rf.median_outage_minutes DESC NULLS LAST,
+        ABS(rf.metric_value)     DESC
     LIMIT :limit
     '''
-    return query_db(sql,{'flag_type': flag_type, 'severity': severity, 'limit': limit})
+    return query_db(sql, {'flag_type': flag_type, 'severity': severity,
+                          'window': window, 'limit': limit})
+
 
 def get_flag_summary()-> list:
     '''
-    Query 9:Flag summary counts 
+    Query 9:Flag summary.
 
-returns a summary of the count of stations that are flagged with the flag and the severity. 
-The result is filtered for active stations (WHERE resolved_at IS NULL)
-The result is ordered by the severity level giving high 1, medium 2 and low 3
-'''
+    Number of flagged stations per flag type, rush window and severity, plus the
+    group's average metric_value. The table is rebuilt weekly, so every row is
+    current. COUNT(*) equals the number of stations because rebalancing_flags is 
+    UNIQUE on (station_id, flag_type, window_label).
+    metric_value units depend on flag_type:
+      chronic_*   -> % of rush snapshots empty/full
+      imbalance_* -> net bikes gained(+)/lost(-) over the window, % of capacity
+    '''
     sql = '''
     SELECT 
         flag_type,
+        window_label,
         severity,
-        COUNT(*) AS active_count,
-        MIN(detected_at) AS oldest_active,
-        MAX(detected_at) AS newest_active
+        COUNT(*) AS station_count,
+        ROUND(AVG(metric_value), 1) AS avg_metric_value,
+        sum(outage_count) AS outage_count
     FROM rebalancing_flags
-    WHERE resolved_at IS NULL
-    GROUP BY flag_type, severity
-    ORDER BY flag_type,
+    GROUP BY flag_type, window_label, severity
+    ORDER BY flag_type, window_label,
         CASE 
             WHEN severity = 'high' THEN 1
             WHEN severity = 'medium' THEN 2
             ELSE 3
-    END;
+        END;
         '''
     return query_db(sql)
 
@@ -286,26 +243,32 @@ The result is ordered by the severity level giving high 1, medium 2 and low 3
 # System overview 
 # _____________________________________
 
+
 def get_system_stats()->dict:
     '''
-    Query 10: System wide aggregate counts for the overview dashboard
+    Query 10: System-wide counts for the overview cards.
 
-    Gives system stats for the number of stations available, 
-    the number of availability_snapshots (live data that were downloaded), 
-    the number of active flagged stations, 
-    the number of flagged stations for each flag chronic_full/chronic_empty/high_imbalance 
+    Counts DISTINCT stations, not flag rows: one station can be flagged in both
+    the AM and PM windows. Every row in rebalancing_flags is current because the
+    weekly refresh rebuilds the table, so there is no "active" filter.
+    flags_computed_at tells the viewer how fresh the flags are.
     '''
+    
     sql = '''
-    SELECT
-        (SELECT COUNT(*) FROM stations) AS total_stations,
-        (SELECT COUNT(*) FROM stations WHERE is_active = 'true') AS active_stations,
-        (SELECT COUNT(*) FROM trips) AS total_trips,
-        (SELECT COUNT(*) FROM availability_snapshots) AS total_snapshots,
-        (SELECT COUNT(*) FROM rebalancing_flags WHERE resolved_at IS NULL) AS active_flags,
-        (SELECT COUNT(*) FROM rebalancing_flags WHERE flag_type = 'chronic_empty' AND resolved_at IS NULL) AS chronic_empty_count,
-        (SELECT COUNT(*) FROM rebalancing_flags WHERE flag_type = 'chronic_full' AND resolved_at IS NULL) AS chronic_full_count
+        SELECT
+            (SELECT COUNT(*) FROM stations) AS total_stations,
+            (SELECT COUNT(*) FROM stations WHERE is_active) AS flagged_stations,
+            (SELECT reltuples::bigint FROM pg_class WHERE relname = 'trips') AS total_trips,
+            (SELECT reltuples::bigint FROM pg_class WHERE relname = 'availability_snapshots') AS total_snapshots,
+            (SELECT COUNT(DISTINCT station_id) FROM rebalancing_flags) AS active_flags,
+            (SELECT COUNT(DISTINCT station_id) FROM rebalancing_flags
+                WHERE flag_type = 'chronic_empty') AS chronic_empty_count,
+            (SELECT COUNT(DISTINCT station_id) FROM rebalancing_flags
+                WHERE flag_type = 'chronic_full') AS chronic_full_count,
+            (SELECT MAX(computed_at) FROM rebalancing_flags) AS flags_computed_at
         '''
-    return query_db(sql, one_row = True)
+    return query_db(sql, one_row=True)
+    
 
 def get_date_range()->dict:
     '''
@@ -315,126 +278,101 @@ def get_date_range()->dict:
     SELECT 
         (SELECT MIN(captured_at) FROM availability_snapshots) AS snapshots_starts,
         (SELECT MAX(captured_at) FROM availability_snapshots) AS snapshots_ends,
-        (SELECT MIN(started_at) FROM trips)                   AS trips_start,
-        (SELECT MAX(started_at) FROM trips)                   AS trips_end
+        (SELECT MIN(started_at) FROM trips) AS trips_start,
+        (SELECT MAX(started_at) FROM trips) AS trips_end;
     '''
     return query_db(sql, one_row = True)
 
 # ___________________________________________________
-# Corridor
+# At risk stations
 # ___________________________________________________
 
-def get_busiest_corridor(min_trips: int = 500, limit :int=20)->list:
+def get_at_risk_stations(status: str = None, limit: int = 10) -> list:
     '''
-    Query 12: Tops Busiest station_pairs corridors 
+    Query 13: At-risk now: stations empty, full, or close to it in the latest snapshot.
 
-    This query identifies the most popular bike-share routes 
-    and calculates percent of member users 
-    and converts avg_duration to minutes which is easier to read. 
-    The user is able to filter for the minimum of trip_count, like minimum 500 trips for busy stations, 
-    also user will be able to set a limit for how many results display.
-    '''
+    Reads the technician_alerts view (defined in sql/schema.sql).
+    Order: empty, full, near_empty, near_full; within a status, longest outage first,
+    then the stations that are chronically empty/full during rush hour.'''
     sql = '''
-    SELECT 
-        sp.start_station_id,
-        s1.name AS start_station_name,
-        sp.end_station_id,
-        s2.name AS end_station_name,
-        sp.trip_count,
-        sp.avg_duration_seconds,
-        ROUND(sp.avg_duration_seconds / 60.0,2) AS avg_duration_in_min,
-        ROUND(100.0 * sp.member_trips / NULLIF(sp.trip_count,0),2) AS pct_member
-    FROM station_pairs sp
-    JOIN stations s1 ON s1.short_name = sp.start_station_id
-    JOIN stations s2 ON s2.short_name = sp.end_station_id
-    WHERE trip_count >= :min_trips
-    ORDER BY sp.trip_count DESC
-    LIMIT :limit
+        SELECT 
+            station_id, 
+            name, 
+            short_name, 
+            capacity,
+            status, 
+            bikes, 
+            docks, 
+            as_of,
+            minutes_in_status,
+            chronic_empty_pct, 
+            chronic_full_pct
+        FROM technician_alerts
+        WHERE CAST(status AS text) is Null or status = :status
+        ORDER BY
+            CASE 
+                status WHEN 'empty' THEN 1 WHEN 'full' THEN 2
+                WHEN 'near_empty' THEN 3 WHEN 'near_full' THEN 4
+                ELSE 5
+            END,
+            GREATEST(COALESCE(chronic_empty_pct,0), COALESCE(chronic_full_pct,0)) DESC,
+            minutes_in_status DESC NULLS LAST
+        LIMIT :limit;
     '''
-    return query_db(sql, {'min_trips': min_trips, 'limit': limit})
+    return query_db(sql,{'status':status,'limit':limit})
 
-def get_bidirectional_trip_imbalance(limit: int =20)->list:
-     '''
-Query 13: Bidirectional trip imbalance 
-
-Shows traffic imbalance between stations, meaning if there is more inbound than outbound or the opposite.  
-Calculate the trip count, 
-the imbalance(inbound-outbound) 
-and the percent imbalance (inbound - outbound / total trips between station a and b) 
-and indicate the imbalance is toward which station.
-Station pairs for both directions is done by using GREATEST and LEAST functions, which identifies the start station or end stations alphabetically. 
-Ensure no duplicates using (WHERE sp1.start_station_id < sp1.end_station_id)
-
+def get_at_risk_counts() -> list:
+    '''How many stations are in each at-risk status right now.'''
+    sql = '''
+    SELECT status, COUNT(*) AS n
+    FROM technician_alerts
+    GROUP BY status
     '''
-     sql = '''
-    SELECT 
-        LEAST(sp1.start_station_id, sp1.end_station_id) AS station_a,
-        GREATEST(sp1.start_station_id, sp1.end_station_id) AS station_b,
-        s1.name AS station_a_name,
-        s2.name AS station_b_name,
-        COALESCE(sp1.trip_count,0) AS trips_a_to_b,
-        COALESCE(sp2.trip_count,0) AS trips_b_to_a,
-        COALESCE(sp1.trip_count,0)+ COALESCE(sp2.trip_count,0) AS total_trips,
-        ABS(COALESCE(sp1.trip_count,0)- COALESCE(sp2.trip_count,0)) AS abs_imbalance,
-        ROUND(100.0 * ABS(COALESCE(sp1.trip_count,0)- COALESCE(sp2.trip_count,0)) /
-        NULLIF(COALESCE(sp1.trip_count,0)+ COALESCE(sp2.trip_count,0),0), 2) AS pct_imbalance,
-        CASE 
-            WHEN COALESCE(sp1.trip_count,0) > COALESCE(sp2.trip_count,0) THEN 'toward ' || s2.name
-            WHEN COALESCE(sp1.trip_count,0) < COALESCE(sp2.trip_count,0) THEN 'toward ' || s1.name
-            ELSE 'balanced'
-        END AS imbalance_direction
-    FROM station_pairs sp1
-    LEFT JOIN station_pairs sp2 ON 
-            sp1.start_station_id = sp2.end_station_id AND
-            sp1.end_station_id = sp2.start_station_id
-    JOIN stations s1 ON LEAST(sp1.start_station_id,sp1.end_station_id) = s1.short_name  
-    JOIN stations s2 ON GREATEST(sp1.start_station_id,sp1.end_station_id) = s2.short_name 
-    WHERE sp1.start_station_id < sp1.end_station_id
-    LIMIT :limit;
-    '''
-     return query_db(sql,{'limit':limit})
-
+    return query_db(sql)
 #_______________________________________
 # Ranking Queries
 # ______________________________________
 
-def get_problem_stations_ranking()->list:
+def get_problem_stations_ranking(flag_type: str = None, window: str = None, per_group: int = 3)->list:
      '''
-    Query 14: Problem stations ranked
+    Query 14: Problem stations ranked by the worst 3 stations in each category.
 
-    Generate a report of currently active and unresolved stations by flag and severity and time unresolved. 
-    Ranks by the severity: high = 1, medium = 2, and low=3, 
-    and ranks by age, oldest has highest priority, 
-    so a station that has ranking of 1 means it is severe and it is the oldest
     ''' 
      sql = '''
-        SELECT 
-            s.station_id,
-            s.short_name,
-            s.name,
-            rf.flag_type,
-            rf.severity,
-            rf.detected_at,  
-            RANK() OVER (PARTITION BY rf.flag_type ORDER BY 
-                                            CASE
-                                                WHEN severity = 'high' THEN 1
-                                                WHEN severity = 'medium' THEN 2
-                                                ELSE 3
-                                            END,
-                                            rf.detected_at) AS rank_within_flag,
-                COUNT(*) OVER (PARTITION BY rf.flag_type) as total_in_flag_type
-        FROM rebalancing_flags rf
-        JOIN stations s ON s.station_id = rf.station_id
-        WHERE rf.resolved_at IS NULL
-        ORDER BY rf.flag_type, rank_within_flag;
+      WITH ordered_stations AS (
+             SELECT *,
+                 ROW_NUMBER() OVER (PARTITION BY flag_type, window_label
+                                    ORDER BY median_outage_minutes DESC NULLS LAST,
+                                             ABS(metric_value) DESC) AS rank_in_group,
+                 COUNT(*) OVER (PARTITION BY flag_type, window_label) AS group_size
+             FROM rebalancing_flags
+            WHERE (CAST(:flag_type AS text) IS NULL OR flag_type    = :flag_type)
+                AND (CAST(:window AS text) IS NULL OR window_label = :window)
+         )
+         SELECT
+             o.flag_type,
+             o.window_label,
+             o.rank_in_group,
+             o.group_size,
+             s.station_id,
+             s.station_name AS name,
+             s.short_name,
+             o.severity,
+             o.metric_value,
+             o.median_outage_minutes
+         FROM ordered_stations o
+         JOIN stations s ON s.station_id = o.station_id
+         WHERE o.rank_in_group <= :per_group
+         ORDER BY o.flag_type, o.window_label, o.rank_in_group;
         '''
-     return query_db(sql)
+
+     return query_db(sql, {'flag_type':flag_type, 'window':window, 'per_group': per_group})
 
 def get_worst_availability_stations()->list:
      '''
     Query 15: Stations with worst availability
 
-    This query finds the 20 worst performing stations by availability over the last 30 days. 
+    This query finds the 20 worst performing stations by availability over the data. 
     For each station it calculates the average percentage of time spent empty, full, and 
     combines both into a single unavailability score. The HAVING clause filters out stations 
     that are performing at or below the system average, so only genuinely problematic stations make the list. 
@@ -443,9 +381,9 @@ def get_worst_availability_stations()->list:
     '''
      sql = '''
         SELECT 
-            s.station_id,
+            s.station_name AS name, 
             s.short_name,
-            s.name,
+            s.station_id,
             s.capacity,
             ROUND(AVG(dsm.pct_time_empty),2) AS avg_pct_empty,
             ROUND(AVG(dsm.pct_time_full),2) AS avg_pct_full,
@@ -453,8 +391,7 @@ def get_worst_availability_stations()->list:
             COUNT(*) AS days_sampled
         FROM daily_station_metrics dsm
         JOIN stations s ON s.station_id = dsm.station_id
-        WHERE summary_date >= (SELECT MAX(summary_date) FROM daily_station_metrics) - INTERVAL '30 days'
-        GROUP BY s.station_id, s.short_name, s.name, s.capacity
+        GROUP BY s.station_id, s.short_name, s.station_name, s.capacity
         HAVING AVG(dsm.pct_time_empty) + AVG(dsm.pct_time_full) >
                                 (SELECT AVG(pct_time_empty + pct_time_full) FROM daily_station_metrics) --The average pct_unavailable
         ORDER BY  avg_pct_unavailable DESC

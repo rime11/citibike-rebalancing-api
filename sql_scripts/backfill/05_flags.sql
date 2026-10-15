@@ -33,12 +33,12 @@ snap AS (
     SELECT
         s.station_id,
         w.window_label,
-        COUNT(*) FILTER (WHERE s.is_installed IS TRUE AND s.is_renting IS TRUE)             AS n_renting,
+        COUNT(*) FILTER (WHERE s.is_installed IS TRUE AND s.is_renting IS TRUE) AS n_renting,
         COUNT(*) FILTER (WHERE s.is_installed IS TRUE AND s.is_renting IS TRUE
-                           AND s.num_bikes_available = 0)                                    AS n_empty,
-        COUNT(*) FILTER (WHERE s.is_installed IS TRUE AND s.is_returning IS TRUE)           AS n_returning,
+                           AND s.num_bikes_available = 0) AS n_empty,
+        COUNT(*) FILTER (WHERE s.is_installed IS TRUE AND s.is_returning IS TRUE) AS n_returning,
         COUNT(*) FILTER (WHERE s.is_installed IS TRUE AND s.is_returning IS TRUE
-                           AND s.num_docks_available = 0)                                    AS n_full
+                           AND s.num_docks_available = 0) AS n_full
     FROM availability_snapshots s
     CROSS JOIN params p
     JOIN windows w
