@@ -22,8 +22,8 @@ Endpoints
 '''
 
 #imports
-import os
-from flask import Flask, jsonify, request, abort, render_template,current_app,request
+
+from flask import Flask, jsonify, request, abort, render_template
 from werkzeug.exceptions import HTTPException 
 from dotenv import load_dotenv
 
@@ -72,13 +72,9 @@ def dashboard():
 #-------------------------Queries---------------------------------
 #-----------------------STATION DETAIL QUERIES -------------------
 @app.get("/api/stations")
-def list_stations():
+def list_station_info():    
     """Returns a list of all stations with basic info"""
-    from db import query_db
-    rows = query_db("SELECT station_id, short_name, name, latitude," \
-                    "longitude, capacity, is_active " \
-                    "FROM stations WHERE is_active = True " \
-                    "ORDER BY name")
+    rows = queries.get_station_info()
     
     return ok(rows)
 
@@ -108,7 +104,7 @@ def rolling_metrics(station_id):
     rows = queries.get_rolling_metrics(station_id)
     if not rows:
         abort(404, description = f"No metrics for {station_id}")
-    return jsonify(rows)
+    return ok(rows)
                     
 
 @app.get("/api/stations/<station_id>/hourly")
@@ -120,31 +116,8 @@ def station_hourly(station_id):
     rows = queries.get_hourly_demand_patterns(station_id)
     if not rows:
         abort(404, description = f"No hourly patterns for {station_id}")
-    return jsonify(rows)
+    return ok(rows)
 
-@app.get("/api/stations/<short_name>/flows/outbound")
-def outbound_destinations(short_name):
-    '''
-    Query 5 and 6: Top outbound destinations and inbound origins: where do riders go from given station.
-    Requires short_name because station_pairs uses short_name as its join key.
-    Example: GET /api/stations/abc123/flows?short_name=6926.01
-    '''
-    rows =  queries.get_top_outbound_destinations(short_name)
-    if not rows:
-        abort(404, description = f"Station {short_name} not found or no flow data")
-    return jsonify(rows)
-
-@app.get("/api/stations/<short_name>/flows/inbound")
-def inbound_origins(short_name):
-    '''
-    Query 6: Top inbound destinations:where do riders come from to given station
-    Requires short_name because station_pairs uses short_name as its join key.
-    Example: GET /api/stations/abc123/flows?short_name=6926.01
-    '''
-    rows = queries.get_top_inbound_origins(short_name)
-    if not rows:
-        abort(404, description = f"Station {short_name} not found or no flow data")
-    return jsonify(rows)
 
 @app.get("/api/stations/<station_id>/changes")
 def station_status_changes(station_id):
@@ -156,7 +129,7 @@ def station_status_changes(station_id):
     rows = queries.get_status_changes(station_id)
     if not rows:
         abort(404, description = f"Station {station_id} not found")
-    return jsonify(rows)
+    return ok(rows)
 
 #-------------------------Flags-------------------------
 @app.get("/api/flags")

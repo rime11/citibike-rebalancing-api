@@ -1,11 +1,13 @@
 \timing on
 BEGIN;
+SET LOCAL TIME ZONE 'America/New_York';
 
 TRUNCATE hourly_patterns; --truncate empties the table nothing time sensitive reads it, faster
 
 INSERT INTO hourly_patterns (
     station_id, day_of_week, hour_of_day,
-    avg_trips_started, avg_trips_ended, avg_net_flow, avg_bikes_available
+    avg_trips_started, avg_trips_ended, avg_net_flow, 
+    avg_bikes_available, num_days_sampled  
 )
 WITH calendar AS (          -- how many Mondays, Tuesdays... are in the trip window
     SELECT EXTRACT(DOW FROM d)::int AS dow, COUNT(*) AS n_days
@@ -59,7 +61,8 @@ SELECT
     ROUND(COALESCE(ts.total_starts, 0)::numeric / c.n_days, 2),
     ROUND(COALESCE(te.total_ends,   0)::numeric / c.n_days, 2),
     ROUND((COALESCE(te.total_ends, 0) - COALESCE(ts.total_starts, 0))::numeric / c.n_days, 2),
-    am.avg_bikes_available
+    am.avg_bikes_available,
+    c.n_days
 FROM spine sp
 JOIN calendar c ON c.dow = sp.dow
 LEFT JOIN trip_starts ts ON (ts.station_id, ts.dow, ts.hr) = (sp.station_id, sp.dow, sp.hr)

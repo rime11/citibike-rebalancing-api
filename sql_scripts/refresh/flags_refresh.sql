@@ -11,21 +11,24 @@
 -- Assumes captured_at / started_at are New York local time.
  
 BEGIN;
+SET LOCAL TIME ZONE 'America/New_York';
  
 DELETE FROM rebalancing_flags; --dashboard reads it so it doesn't hang during a refresh.
+ 
  
 WITH params AS (
     SELECT
 
         TIMESTAMPTZ '2026-01-15' AS date_range,
         TIMESTAMPTZ '2026-01-30' AS end_date,
+        -- Live weekly job (rolling window): swap in these two lines instead
+        -- (CURRENT_DATE - 28)::timestamptz AS date_range,
+        -- CURRENT_DATE::timestamptz AS end_date,   -- exclusive: through yesterday  
         100    AS min_snapshots,       -- sample-size guard for chronic_* (per station-window)
         10.0   AS min_chronic_pct,     -- flag if empty/full in >= 10% of rush snapshots
         4      AS min_trip_days,       -- sample-size guard for imbalance_*
         50.0   AS min_imbalance_pct    -- flag if rush window drains/fills >= 50% of capacity
-         -- Live weekly job (rolling window): swap in these two lines instead
-        -- (CURRENT_DATE - 28)::timestamptz AS date_range,
-        -- CURRENT_DATE::timestamptz AS end_date,   -- exclusive: through yesterday      
+           
 ),
 --rushhour windows AM 7-9, PM 5-7
 windows (window_label, h_start, h_end) AS (
@@ -125,6 +128,7 @@ outage_windows AS (
       AND NOT o.is_ongoing
       AND NOT o.overlaps_offline
       AND o.started_at >= p.date_range
+      AND o.ended_at   <= p.end_date
 ),
 outages AS (
     SELECT

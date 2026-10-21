@@ -3,6 +3,7 @@
 -- this is the first run for daily_station_metrics table
 BEGIN;
 
+
 INSERT INTO daily_station_metrics (
     station_id, summary_date, trips_started, trips_ended,
     avg_bikes_available, min_bikes_available, max_bikes_available,
@@ -11,31 +12,31 @@ INSERT INTO daily_station_metrics (
 WITH availability AS (
     SELECT station_id,
            DATE(captured_at) AS summary_date,
-           AVG(num_bikes_available) AS avg_bikes_available,
-           MIN(num_bikes_available) AS min_bikes_available,
-           MAX(num_bikes_available) AS max_bikes_available,
+           AVG(num_bikes_available) FILTER (WHERE is_installed IS TRUE AND is_renting IS TRUE) AS  avg_bikes_available,
+           MIN(num_bikes_available) FILTER (WHERE is_installed IS TRUE AND is_renting IS TRUE) AS min_bikes_available,
+           MAX(num_bikes_available) FILTER (WHERE is_installed IS TRUE AND is_renting IS TRUE) AS max_bikes_available,
            -- out-of-service snapshots excluded, same rules as rebalancing_flags
            100.0 * COUNT(*) FILTER (WHERE is_installed IS TRUE AND is_renting IS TRUE AND num_bikes_available = 0)
                  / NULLIF(COUNT(*) FILTER (WHERE is_installed IS TRUE AND is_renting IS TRUE), 0)   AS pct_time_empty,
            100.0 * COUNT(*) FILTER (WHERE is_installed IS TRUE AND is_returning IS TRUE AND num_docks_available = 0)
                  / NULLIF(COUNT(*) FILTER (WHERE is_installed IS TRUE AND is_returning IS TRUE), 0) AS pct_time_full
     FROM availability_snapshots
-    WHERE captured_at >= CURRENT_DATE - 2
+    --WHERE captured_at >= CURRENT_DATE - 2 --for live data
     GROUP BY station_id, DATE(captured_at)
 ),
 trip_starts AS (
     SELECT s.station_id, DATE(t.started_at) AS summary_date, COUNT(*) AS trips_started
     FROM trips t
     JOIN stations s ON t.start_station_id = s.short_name
-    WHERE t.started_at >= CURRENT_DATE - 2
+    --WHERE t.started_at >= CURRENT_DATE - 2
     GROUP BY s.station_id, DATE(t.started_at)
 ),
 trip_ends AS (
     SELECT s.station_id, DATE(t.ended_at) AS summary_date, COUNT(*) AS trips_ended
     FROM trips t
     JOIN stations s ON t.end_station_id = s.short_name
-    WHERE t.ended_at   >= CURRENT_DATE - 2
-      AND t.started_at >= CURRENT_DATE - 3   -- lets Postgres use idx_trips_started_at
+    --WHERE t.ended_at   >= CURRENT_DATE - 2
+      --AND t.started_at >= CURRENT_DATE - 3   -- lets Postgres use idx_trips_started_at
     GROUP BY s.station_id, DATE(t.ended_at)
 ),
 trips_published AS (

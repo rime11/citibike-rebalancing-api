@@ -21,7 +21,7 @@
     <div class="section-label">At-Risk Now — technician_alerts</div>
     <div class="panel">
       <div class="panel-header">
-        <span class="panel-title">Stations empty, full, or close to it</span>
+        <span class="panel-title">Stations empty, full, or close to it. Look at weekday rush hours</span>
         <span id="alerts-asof" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span>
          
       </div>     <!-- /panel-header -->
@@ -120,10 +120,6 @@
   </section>
  
 
-  <!---- RANKINGS (14) + WORST AVAILABILITY (15) ──── -->
-  <div class="two-col">
-
-
     <section>
       <div class="section-label">Worst Availability — Query 15</div>
       <div class="panel">
@@ -136,7 +132,7 @@
       </div>
     </section>
 
-  </div>
+
 
 
 </main>
@@ -178,7 +174,7 @@ function flagBadge(f) {
 // ---Query 10 & 11 — system stats ------------------------------------------------
 async function loadStats() {
   try {
-       // 1. Fetch data from endpoints in parallel
+       // 1. Fetch data from endpoints one after another
     const c = await apiFetch('/api/stats');
     const d = await apiFetch('/api/stats/range');
 
@@ -253,7 +249,7 @@ async function loadFlagSummary() {
 // ---Query 8 — flagged stations ------------------------------------------------
 async function loadFlags() {
 
-  document.getElementById('flags-body').innerHTML = `<div class="state-msg"><span class="spinner"></span>loading...</div>`;
+  document.getElementById('flags-body').innerHTML = `<div class="state-msg"><span class="spinner">/span>loading...</div>`;
 
   // filters
   const flagType = document.getElementById('filter-flag-type').value;
@@ -440,6 +436,7 @@ async function loadWorst() {
 
 // ── boot — load all panels on page load ------------------------------------------------
 loadAlerts(true)
+setInterval(() => loadAlerts(true), 5 * 60 * 1000);
 loadStats();
 loadRankings();
 loadFlagSummary();
