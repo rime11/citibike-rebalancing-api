@@ -22,7 +22,7 @@ Endpoints
 '''
 
 #imports
-
+import os
 from flask import Flask, jsonify, request, abort, render_template
 from werkzeug.exceptions import HTTPException 
 from dotenv import load_dotenv
@@ -210,4 +210,4 @@ def worst_availability():
      return ok(rows)
 
 if __name__ == '__main__':
-    app.run(debug=True, port = 5000)
+    app.run(debug=os.environ.get("FLASK_DEBUG") == "1")

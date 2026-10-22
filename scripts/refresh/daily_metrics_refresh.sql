@@ -42,7 +42,8 @@ trip_ends AS (
     GROUP BY s.station_id, DATE(t.ended_at)
 ),
 trips_published AS (
-    SELECT MAX(started_at)::date AS last_day FROM trips
+    SELECT MAX(started_at)::date AS last_day 
+    FROM trips
 )
 SELECT a.station_id,
        a.summary_date,

@@ -1,3 +1,4 @@
+
 CREATE TABLE station_status_changes (
     change_id     SERIAL PRIMARY KEY,
     station_id    VARCHAR(50) NOT NULL

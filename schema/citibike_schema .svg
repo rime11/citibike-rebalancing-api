@@ -1,0 +1,257 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1220 960" width="1220" height="960" font-family="Helvetica, Arial, sans-serif">
+<defs>
+<marker id="one" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M5 1 V11 M8 1 V11" stroke="#555" stroke-width="1.4"/></marker>
+<marker id="many" viewBox="0 0 12 12" refX="1" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1 1 L11 6 M1 11 L11 6 M1 6 H11" stroke="#555" stroke-width="1.4" fill="none"/></marker>
+</defs>
+<rect width="1220" height="960" fill="#ffffff"/>
+<text x="40" y="38" font-size="20" font-weight="bold" fill="#1a1a1a">CitiBike Rebalancing: Database Schema</text>
+<path d="M380 123 H395 V101 H440" fill="none" stroke="#555" stroke-width="1.4" stroke-dasharray="5 4" marker-start="url(#many)" marker-end="url(#one)"/>
+<path d="M380 483 H408 V101 H440" fill="none" stroke="#555" stroke-width="1.4" marker-start="url(#many)" marker-end="url(#one)"/>
+<path d="M440 683 H422 V101 H440" fill="none" stroke="#555" stroke-width="1.4" marker-start="url(#many)" marker-end="url(#one)"/>
+<path d="M40 593 H20 V101 H40" fill="none" stroke="#555" stroke-width="1.4" marker-start="url(#many)" marker-end="url(#one)"/>
+<path d="M610 330 V266" fill="none" stroke="#555" stroke-width="1.4" marker-start="url(#many)" marker-end="url(#one)"/>
+<path d="M840 211 H812 V145 H780" fill="none" stroke="#555" stroke-width="1.4" marker-start="url(#many)" marker-end="url(#one)"/>
+<path d="M840 233 H800 V145 H780" fill="none" stroke="#555" stroke-width="1.4" marker-start="url(#many)" marker-end="url(#one)"/>
+<path d="M840 543 H824 V101 H780" fill="none" stroke="#555" stroke-width="1.4" marker-start="url(#many)" marker-end="url(#one)"/>
+<rect x="40" y="60" width="340" height="294" rx="4" fill="#fff" stroke="#1f4e79" stroke-width="1.5"/>
+<path d="M40 90 V64 Q40 60 44 60 H376 Q380 60 380 64 V90 Z" fill="#1f4e79"/>
+<text x="52" y="80" font-size="14" font-weight="bold" fill="#fff">availability_snapshots</text>
+<text x="48" y="105" font-size="10" font-weight="bold" fill="#8a5a00">PK</text>
+<text x="74" y="105" font-size="12.5" fill="#1a1a1a" font-weight="bold">snapshot_id</text>
+<text x="370" y="105" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<rect x="41.5" y="112" width="337" height="22" fill="#f3f5f7"/>
+<text x="48" y="127" font-size="10" font-weight="bold" fill="#8a5a00">UQ</text>
+<text x="74" y="127" font-size="12.5" fill="#1a1a1a">station_id</text>
+<text x="370" y="127" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(50)</text>
+<text x="48" y="149" font-size="10" font-weight="bold" fill="#8a5a00">UQ</text>
+<text x="74" y="149" font-size="12.5" fill="#1a1a1a">captured_at</text>
+<text x="370" y="149" font-size="11.5" fill="#6b7280" text-anchor="end">timestamptz</text>
+<rect x="41.5" y="156" width="337" height="22" fill="#f3f5f7"/>
+<text x="74" y="171" font-size="12.5" fill="#1a1a1a">last_reported</text>
+<text x="370" y="171" font-size="11.5" fill="#6b7280" text-anchor="end">timestamptz</text>
+<text x="74" y="193" font-size="12.5" fill="#1a1a1a">num_bikes_available</text>
+<text x="370" y="193" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<rect x="41.5" y="200" width="337" height="22" fill="#f3f5f7"/>
+<text x="74" y="215" font-size="12.5" fill="#1a1a1a">num_ebikes_available</text>
+<text x="370" y="215" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<text x="74" y="237" font-size="12.5" fill="#1a1a1a">num_docks_available</text>
+<text x="370" y="237" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<rect x="41.5" y="244" width="337" height="22" fill="#f3f5f7"/>
+<text x="74" y="259" font-size="12.5" fill="#1a1a1a">num_bikes_disabled</text>
+<text x="370" y="259" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<text x="74" y="281" font-size="12.5" fill="#1a1a1a">num_docks_disabled</text>
+<text x="370" y="281" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<rect x="41.5" y="288" width="337" height="22" fill="#f3f5f7"/>
+<text x="74" y="303" font-size="12.5" fill="#1a1a1a">is_installed</text>
+<text x="370" y="303" font-size="11.5" fill="#6b7280" text-anchor="end">boolean</text>
+<text x="74" y="325" font-size="12.5" fill="#1a1a1a">is_renting</text>
+<text x="370" y="325" font-size="11.5" fill="#6b7280" text-anchor="end">boolean</text>
+<rect x="41.5" y="332" width="337" height="22" fill="#f3f5f7"/>
+<text x="74" y="347" font-size="12.5" fill="#1a1a1a">is_returning</text>
+<text x="370" y="347" font-size="11.5" fill="#6b7280" text-anchor="end">boolean</text>
+<rect x="40" y="420" width="340" height="184" rx="4" fill="#fff" stroke="#2e7d5b" stroke-width="1.5"/>
+<path d="M40 450 V424 Q40 420 44 420 H376 Q380 420 380 424 V450 Z" fill="#2e7d5b"/>
+<text x="52" y="440" font-size="14" font-weight="bold" fill="#fff">station_status_changes</text>
+<text x="48" y="465" font-size="10" font-weight="bold" fill="#8a5a00">PK</text>
+<text x="74" y="465" font-size="12.5" fill="#1a1a1a" font-weight="bold">change_id</text>
+<text x="370" y="465" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<rect x="41.5" y="472" width="337" height="22" fill="#f3f5f7"/>
+<text x="48" y="487" font-size="10" font-weight="bold" fill="#8a5a00">FK</text>
+<text x="74" y="487" font-size="12.5" fill="#1a1a1a">station_id</text>
+<text x="370" y="487" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(50)</text>
+<text x="74" y="509" font-size="12.5" fill="#1a1a1a">change_type</text>
+<text x="370" y="509" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(30)</text>
+<rect x="41.5" y="516" width="337" height="22" fill="#f3f5f7"/>
+<text x="74" y="531" font-size="12.5" fill="#1a1a1a">detected_at</text>
+<text x="370" y="531" font-size="11.5" fill="#6b7280" text-anchor="end">timestamp</text>
+<text x="74" y="553" font-size="12.5" fill="#1a1a1a">value_before</text>
+<text x="370" y="553" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<rect x="41.5" y="560" width="337" height="22" fill="#f3f5f7"/>
+<text x="74" y="575" font-size="12.5" fill="#1a1a1a">value_after</text>
+<text x="370" y="575" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<text x="48" y="597" font-size="10" font-weight="bold" fill="#8a5a00">FK</text>
+<text x="74" y="597" font-size="12.5" fill="#1a1a1a">snapshot_id</text>
+<text x="370" y="597" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<rect x="440" y="60" width="340" height="206" rx="4" fill="#fff" stroke="#1f4e79" stroke-width="1.5"/>
+<path d="M440 90 V64 Q440 60 444 60 H776 Q780 60 780 64 V90 Z" fill="#1f4e79"/>
+<text x="452" y="80" font-size="14" font-weight="bold" fill="#fff">stations</text>
+<text x="448" y="105" font-size="10" font-weight="bold" fill="#8a5a00">PK</text>
+<text x="474" y="105" font-size="12.5" fill="#1a1a1a" font-weight="bold">station_id</text>
+<text x="770" y="105" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(50)</text>
+<rect x="441.5" y="112" width="337" height="22" fill="#f3f5f7"/>
+<text x="474" y="127" font-size="12.5" fill="#1a1a1a">station_name</text>
+<text x="770" y="127" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(200)</text>
+<text x="448" y="149" font-size="10" font-weight="bold" fill="#8a5a00">UQ</text>
+<text x="474" y="149" font-size="12.5" fill="#1a1a1a">short_name</text>
+<text x="770" y="149" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(20)</text>
+<rect x="441.5" y="156" width="337" height="22" fill="#f3f5f7"/>
+<text x="474" y="171" font-size="12.5" fill="#1a1a1a">latitude</text>
+<text x="770" y="171" font-size="11.5" fill="#6b7280" text-anchor="end">numeric(9,6)</text>
+<text x="474" y="193" font-size="12.5" fill="#1a1a1a">longitude</text>
+<text x="770" y="193" font-size="11.5" fill="#6b7280" text-anchor="end">numeric(9,6)</text>
+<rect x="441.5" y="200" width="337" height="22" fill="#f3f5f7"/>
+<text x="474" y="215" font-size="12.5" fill="#1a1a1a">capacity</text>
+<text x="770" y="215" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<text x="474" y="237" font-size="12.5" fill="#1a1a1a">is_active</text>
+<text x="770" y="237" font-size="11.5" fill="#6b7280" text-anchor="end">boolean</text>
+<rect x="441.5" y="244" width="337" height="22" fill="#f3f5f7"/>
+<text x="474" y="259" font-size="12.5" fill="#1a1a1a">last_updated</text>
+<text x="770" y="259" font-size="11.5" fill="#6b7280" text-anchor="end">timestamp</text>
+<rect x="440" y="330" width="340" height="228" rx="4" fill="#fff" stroke="#2e7d5b" stroke-width="1.5"/>
+<path d="M440 360 V334 Q440 330 444 330 H776 Q780 330 780 334 V360 Z" fill="#2e7d5b"/>
+<text x="452" y="350" font-size="14" font-weight="bold" fill="#fff">rebalancing_flags</text>
+<text x="448" y="375" font-size="10" font-weight="bold" fill="#8a5a00">PK</text>
+<text x="474" y="375" font-size="12.5" fill="#1a1a1a" font-weight="bold">flag_id</text>
+<text x="770" y="375" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<rect x="441.5" y="382" width="337" height="22" fill="#f3f5f7"/>
+<text x="448" y="397" font-size="10" font-weight="bold" fill="#8a5a00">FK</text>
+<text x="474" y="397" font-size="12.5" fill="#1a1a1a">station_id</text>
+<text x="770" y="397" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(50)</text>
+<text x="474" y="419" font-size="12.5" fill="#1a1a1a">flag_type</text>
+<text x="770" y="419" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(30)</text>
+<rect x="441.5" y="426" width="337" height="22" fill="#f3f5f7"/>
+<text x="474" y="441" font-size="12.5" fill="#1a1a1a">severity</text>
+<text x="770" y="441" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(10)</text>
+<text x="474" y="463" font-size="12.5" fill="#1a1a1a">metric_value</text>
+<text x="770" y="463" font-size="11.5" fill="#6b7280" text-anchor="end">numeric(7,2)</text>
+<rect x="441.5" y="470" width="337" height="22" fill="#f3f5f7"/>
+<text x="474" y="485" font-size="12.5" fill="#1a1a1a">median_outage_minutes</text>
+<text x="770" y="485" font-size="11.5" fill="#6b7280" text-anchor="end">numeric(7,1)</text>
+<text x="474" y="507" font-size="12.5" fill="#1a1a1a">outage_count</text>
+<text x="770" y="507" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<rect x="441.5" y="514" width="337" height="22" fill="#f3f5f7"/>
+<text x="474" y="529" font-size="12.5" fill="#1a1a1a">window_label</text>
+<text x="770" y="529" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(40)</text>
+<text x="474" y="551" font-size="12.5" fill="#1a1a1a">computed_at</text>
+<text x="770" y="551" font-size="11.5" fill="#6b7280" text-anchor="end">timestamp</text>
+<rect x="440" y="620" width="340" height="294" rx="4" fill="#fff" stroke="#2e7d5b" stroke-width="1.5"/>
+<path d="M440 650 V624 Q440 620 444 620 H776 Q780 620 780 624 V650 Z" fill="#2e7d5b"/>
+<text x="452" y="640" font-size="14" font-weight="bold" fill="#fff">daily_station_metrics</text>
+<text x="448" y="665" font-size="10" font-weight="bold" fill="#8a5a00">PK</text>
+<text x="474" y="665" font-size="12.5" fill="#1a1a1a" font-weight="bold">metric_id</text>
+<text x="770" y="665" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<rect x="441.5" y="672" width="337" height="22" fill="#f3f5f7"/>
+<text x="448" y="687" font-size="10" font-weight="bold" fill="#8a5a00">FK</text>
+<text x="474" y="687" font-size="12.5" fill="#1a1a1a">station_id</text>
+<text x="770" y="687" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(50)</text>
+<text x="474" y="709" font-size="12.5" fill="#1a1a1a">summary_date</text>
+<text x="770" y="709" font-size="11.5" fill="#6b7280" text-anchor="end">date</text>
+<rect x="441.5" y="716" width="337" height="22" fill="#f3f5f7"/>
+<text x="474" y="731" font-size="12.5" fill="#1a1a1a">trips_started</text>
+<text x="770" y="731" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<text x="474" y="753" font-size="12.5" fill="#1a1a1a">trips_ended</text>
+<text x="770" y="753" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<rect x="441.5" y="760" width="337" height="22" fill="#f3f5f7"/>
+<text x="474" y="775" font-size="12.5" fill="#1a1a1a">net_flow</text>
+<text x="770" y="775" font-size="11.5" fill="#6b7280" text-anchor="end">integer (generated)</text>
+<text x="474" y="797" font-size="12.5" fill="#1a1a1a">avg_bikes_available</text>
+<text x="770" y="797" font-size="11.5" fill="#6b7280" text-anchor="end">numeric(5,2)</text>
+<rect x="441.5" y="804" width="337" height="22" fill="#f3f5f7"/>
+<text x="474" y="819" font-size="12.5" fill="#1a1a1a">min_bikes_available</text>
+<text x="770" y="819" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<text x="474" y="841" font-size="12.5" fill="#1a1a1a">max_bikes_available</text>
+<text x="770" y="841" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<rect x="441.5" y="848" width="337" height="22" fill="#f3f5f7"/>
+<text x="474" y="863" font-size="12.5" fill="#1a1a1a">pct_time_empty</text>
+<text x="770" y="863" font-size="11.5" fill="#6b7280" text-anchor="end">numeric(5,2)</text>
+<text x="474" y="885" font-size="12.5" fill="#1a1a1a">pct_time_full</text>
+<text x="770" y="885" font-size="11.5" fill="#6b7280" text-anchor="end">numeric(5,2)</text>
+<rect x="441.5" y="892" width="337" height="22" fill="#f3f5f7"/>
+<text x="474" y="907" font-size="12.5" fill="#1a1a1a">computed_at</text>
+<text x="770" y="907" font-size="11.5" fill="#6b7280" text-anchor="end">timestamptz</text>
+<rect x="840" y="60" width="340" height="360" rx="4" fill="#fff" stroke="#1f4e79" stroke-width="1.5"/>
+<path d="M840 90 V64 Q840 60 844 60 H1176 Q1180 60 1180 64 V90 Z" fill="#1f4e79"/>
+<text x="852" y="80" font-size="14" font-weight="bold" fill="#fff">trips</text>
+<text x="848" y="105" font-size="10" font-weight="bold" fill="#8a5a00">PK</text>
+<text x="874" y="105" font-size="12.5" fill="#1a1a1a" font-weight="bold">trip_id</text>
+<text x="1170" y="105" font-size="11.5" fill="#6b7280" text-anchor="end">bigint</text>
+<rect x="841.5" y="112" width="337" height="22" fill="#f3f5f7"/>
+<text x="848" y="127" font-size="10" font-weight="bold" fill="#8a5a00">UQ</text>
+<text x="874" y="127" font-size="12.5" fill="#1a1a1a">ride_id</text>
+<text x="1170" y="127" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(50)</text>
+<text x="874" y="149" font-size="12.5" fill="#1a1a1a">rideable_type</text>
+<text x="1170" y="149" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(20)</text>
+<rect x="841.5" y="156" width="337" height="22" fill="#f3f5f7"/>
+<text x="874" y="171" font-size="12.5" fill="#1a1a1a">started_at</text>
+<text x="1170" y="171" font-size="11.5" fill="#6b7280" text-anchor="end">timestamptz</text>
+<text x="874" y="193" font-size="12.5" fill="#1a1a1a">ended_at</text>
+<text x="1170" y="193" font-size="11.5" fill="#6b7280" text-anchor="end">timestamptz</text>
+<rect x="841.5" y="200" width="337" height="22" fill="#f3f5f7"/>
+<text x="848" y="215" font-size="10" font-weight="bold" fill="#8a5a00">FK</text>
+<text x="874" y="215" font-size="12.5" fill="#1a1a1a">start_station_id</text>
+<text x="1170" y="215" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(50)</text>
+<text x="848" y="237" font-size="10" font-weight="bold" fill="#8a5a00">FK</text>
+<text x="874" y="237" font-size="12.5" fill="#1a1a1a">end_station_id</text>
+<text x="1170" y="237" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(50)</text>
+<rect x="841.5" y="244" width="337" height="22" fill="#f3f5f7"/>
+<text x="874" y="259" font-size="12.5" fill="#1a1a1a">start_station_name</text>
+<text x="1170" y="259" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(200)</text>
+<text x="874" y="281" font-size="12.5" fill="#1a1a1a">end_station_name</text>
+<text x="1170" y="281" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(200)</text>
+<rect x="841.5" y="288" width="337" height="22" fill="#f3f5f7"/>
+<text x="874" y="303" font-size="12.5" fill="#1a1a1a">start_lat</text>
+<text x="1170" y="303" font-size="11.5" fill="#6b7280" text-anchor="end">numeric(9,6)</text>
+<text x="874" y="325" font-size="12.5" fill="#1a1a1a">start_lng</text>
+<text x="1170" y="325" font-size="11.5" fill="#6b7280" text-anchor="end">numeric(9,6)</text>
+<rect x="841.5" y="332" width="337" height="22" fill="#f3f5f7"/>
+<text x="874" y="347" font-size="12.5" fill="#1a1a1a">end_lat</text>
+<text x="1170" y="347" font-size="11.5" fill="#6b7280" text-anchor="end">numeric(9,6)</text>
+<text x="874" y="369" font-size="12.5" fill="#1a1a1a">end_lng</text>
+<text x="1170" y="369" font-size="11.5" fill="#6b7280" text-anchor="end">numeric(9,6)</text>
+<rect x="841.5" y="376" width="337" height="22" fill="#f3f5f7"/>
+<text x="874" y="391" font-size="12.5" fill="#1a1a1a">member_casual</text>
+<text x="1170" y="391" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(10)</text>
+<text x="874" y="413" font-size="12.5" fill="#1a1a1a">duration_seconds</text>
+<text x="1170" y="413" font-size="11.5" fill="#6b7280" text-anchor="end">integer (generated)</text>
+<rect x="840" y="480" width="340" height="272" rx="4" fill="#fff" stroke="#2e7d5b" stroke-width="1.5"/>
+<path d="M840 510 V484 Q840 480 844 480 H1176 Q1180 480 1180 484 V510 Z" fill="#2e7d5b"/>
+<text x="852" y="500" font-size="14" font-weight="bold" fill="#fff">hourly_patterns</text>
+<text x="848" y="525" font-size="10" font-weight="bold" fill="#8a5a00">PK</text>
+<text x="874" y="525" font-size="12.5" fill="#1a1a1a" font-weight="bold">pattern_id</text>
+<text x="1170" y="525" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<rect x="841.5" y="532" width="337" height="22" fill="#f3f5f7"/>
+<text x="848" y="547" font-size="10" font-weight="bold" fill="#8a5a00">FK</text>
+<text x="874" y="547" font-size="12.5" fill="#1a1a1a">station_id</text>
+<text x="1170" y="547" font-size="11.5" fill="#6b7280" text-anchor="end">varchar(50)</text>
+<text x="874" y="569" font-size="12.5" fill="#1a1a1a">day_of_week</text>
+<text x="1170" y="569" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<rect x="841.5" y="576" width="337" height="22" fill="#f3f5f7"/>
+<text x="874" y="591" font-size="12.5" fill="#1a1a1a">hour_of_day</text>
+<text x="1170" y="591" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<text x="874" y="613" font-size="12.5" fill="#1a1a1a">is_weekday</text>
+<text x="1170" y="613" font-size="11.5" fill="#6b7280" text-anchor="end">boolean (generated)</text>
+<rect x="841.5" y="620" width="337" height="22" fill="#f3f5f7"/>
+<text x="874" y="635" font-size="12.5" fill="#1a1a1a">avg_trips_started</text>
+<text x="1170" y="635" font-size="11.5" fill="#6b7280" text-anchor="end">numeric(6,2)</text>
+<text x="874" y="657" font-size="12.5" fill="#1a1a1a">avg_trips_ended</text>
+<text x="1170" y="657" font-size="11.5" fill="#6b7280" text-anchor="end">numeric(6,2)</text>
+<rect x="841.5" y="664" width="337" height="22" fill="#f3f5f7"/>
+<text x="874" y="679" font-size="12.5" fill="#1a1a1a">avg_net_flow</text>
+<text x="1170" y="679" font-size="11.5" fill="#6b7280" text-anchor="end">numeric(6,2)</text>
+<text x="874" y="701" font-size="12.5" fill="#1a1a1a">avg_bikes_available</text>
+<text x="1170" y="701" font-size="11.5" fill="#6b7280" text-anchor="end">numeric(5,2)</text>
+<rect x="841.5" y="708" width="337" height="22" fill="#f3f5f7"/>
+<text x="874" y="723" font-size="12.5" fill="#1a1a1a">num_days_sampled</text>
+<text x="1170" y="723" font-size="11.5" fill="#6b7280" text-anchor="end">integer</text>
+<text x="874" y="745" font-size="12.5" fill="#1a1a1a">computed_at</text>
+<text x="1170" y="745" font-size="11.5" fill="#6b7280" text-anchor="end">timestamp</text>
+<rect x="40" y="650" width="340" height="86" rx="4" fill="#fafafa" stroke="#7a7a7a" stroke-width="1.3" stroke-dasharray="6 4"/>
+<text x="52" y="674" font-size="14" font-weight="bold" fill="#333">station_outages (view)</text>
+<text x="52" y="698" font-size="12" fill="#555">Pairs start/end events from</text>
+<text x="52" y="716" font-size="12" fill="#555">station_status_changes into outage episodes</text>
+<rect x="40" y="760" width="340" height="86" rx="4" fill="#fafafa" stroke="#7a7a7a" stroke-width="1.3" stroke-dasharray="6 4"/>
+<text x="52" y="784" font-size="14" font-weight="bold" fill="#333">technician_alerts (view)</text>
+<text x="52" y="808" font-size="12" fill="#555">Latest snapshot per station, minutes in</text>
+<text x="52" y="826" font-size="12" fill="#555">status, chronic % from rebalancing_flags</text>
+<rect x="840" y="790" width="14" height="14" fill="#1f4e79"/>
+<text x="880" y="802" font-size="12" fill="#333">Source table (loaded by ETL)</text>
+<rect x="840" y="812" width="14" height="14" fill="#2e7d5b"/>
+<text x="880" y="824" font-size="12" fill="#333">Derived table (rebuilt by jobs)</text>
+<path d="M840 841 H870" stroke="#555" stroke-width="1.4"/>
+<text x="880" y="846" font-size="12" fill="#333">Foreign key (many to one)</text>
+<path d="M840 863 H870" stroke="#555" stroke-width="1.4" stroke-dasharray="5 4"/>
+<text x="880" y="868" font-size="12" fill="#333">Logical link, no FK constraint</text>
+<text x="840" y="890" font-size="12" fill="#333">PK primary key, FK foreign key, UQ unique</text>
+<text x="840" y="912" font-size="12" fill="#333">Snapshots unique on (station_id, captured_at)</text>
+<text x="840" y="934" font-size="12" fill="#333">trips joins stations on short_name</text>
+</svg>

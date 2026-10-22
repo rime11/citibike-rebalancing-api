@@ -1,6 +1,8 @@
 \timing on
 BEGIN;
 
+SET LOCAL TIME ZONE 'America/New_York';
+
 TRUNCATE station_status_changes;
 
 INSERT INTO station_status_changes

@@ -1,204 +1,220 @@
 # CitiBike Station Rebalancing Analysis
 
-A data engineering project that identifies chronically problematic CitiBike stations to help operators rebalance bikes proactively rather than reactively.
+A data engineering project that tells a CitiBike operations team which stations need bikes or docks **right now**, how long they have been in trouble, and which stations fail **over and over** during weekday rush hour.
 
-**Live Demo:** [Click Here](https://rime11.github.io/citibike-rebalancing-api/citibike_dashboard_prototype.html) | **Stack:** PostgreSQL · Flask · Python · AWS Lightsail
+**Stack:** PostgreSQL · Python · Flask · cron · AWS Lightsail
 
 
-**Schema** ![Alt text](sql/citibike_schema.svg)
+![Dashboard](schema/citibike_schema%20.svg)
+
 ---
+
 ## The Problem
 
-CitiBike moves bikes between stations by truck, an expensive process that is usually reactive: a station is found empty after riders have already been stranded. This project collects station availability every 5 minutes and answers one question:
+CitiBike moves bikes between stations by truck. That work is usually reactive: a station is found empty after riders have already been stranded. A dispatcher needs answers to three different questions, and each one needs different data:
 
-Which stations fail over and over during weekday rush hour, how long do they stay failed, and which way does rider demand push them?
+| Question | Answered by | How fresh |
+|---|---|---|
+| Is this station in trouble **now**? | `technician_alerts` view (latest snapshot) | every 5 minutes |
+| How **long** has it been empty or full? | `station_outages` view (paired status changes) | every 5 minutes |
+| Is this a **recurring** rush-hour problem? | `rebalancing_flags` table | weekly |
 
-The flags describe recurring patterns, not what is happening at this moment.
+The dashboard combines them. A station that is empty right now **and** is chronically empty at rush hour goes to the top of the list.
+
+---
 
 ## What It Produces
 
-**Rebalancing flags**: one row per station, per flag type, per rush window (weekday 7:00–9:59 AM, weekday 17:00–19:59 PM).
+**At risk list (live):** stations that are empty, full, or close to it in the latest snapshot. "Near" means 10% of stations' capacity. Each row shows how many minutes the station has been in that state and its chronic rush hour percentage.
+
+**Rebalancing flags (weekly):** one row per station, per flag type, per rush window (weekdays 07:00–09:59 and 17:00–19:59, New York time).
 
 | Flag | Meaning | Metric | Severity (low / medium / high) |
 |---|---|---|---|
 | `chronic_empty` | Often has 0 bikes during rush hour | % of in-service rush snapshots with 0 bikes | ≥ 10% / 25% / 50% |
 | `chronic_full` | Often has 0 open docks during rush hour | % of in-service rush snapshots with 0 docks | ≥ 10% / 25% / 50% |
-| `imbalance_toward_empty` | Riders drain it over the window | net bikes lost per weekday, as % of capacity | ≥ 50% / 75% / 100% |
-| `imbalance_toward_full` | Riders fill it over the window | net bikes gained per weekday, as % of capacity | ≥ 50% / 75% / 100% |
+| `imbalance_toward_empty` | Riders drain it over the window | average net bikes lost over the window, as % of capacity | ≥ 50% / 75% / 100% |
+| `imbalance_toward_full` | Riders fill it over the window | average net bikes gained over the window, as % of capacity | ≥ 50% / 75% / 100% |
 
-Chronic flags also carry `median_outage_minutes` and `outage_count`, which separate a station that blips empty for 2 minutes from one that stays empty for an hour.
+Chronic flags also carry `median_outage_minutes` and `outage_count`. These separate a station that blips empty for 2 minutes from one that stays empty for an hour.
 
-**Flask dashboard and REST API**: system-wide trends, worst stations by flag type, hourly demand heatmaps, and per-station history and trip flow.
-## Data Souces:
-There are 3 data sources:
-- availability_snapshots and stations data are from the GBFS live data 
-- trips from s3
+**Flask dashboard and REST API** with these panels: at risk stations now, system overview, top problem stations per flag type, flag summary, rush hour trouble stations ranked by outage length, and stations with the worst all day availability.
 
 ---
 
 ## Architecture
 
 ```
-GBFS API (every 5 min)            CitiBike S3 trip CSVs (monthly)
-station_status / station_info              |
-        |                                  |
-        ▼                                  ▼
-availability_snapshots, stations        trips
-        |                                  |
-        ▼ detect transitions               ▼
-station_status_changes             hourly_patterns
-        |                                  |
-        ▼ pair start ↔ end                 |
-station_outages (view)                     |
-        |                                  |
-        └──────────────┬───────────────────┘
-                       ▼
-               rebalancing_flags   +   daily_station_metrics
-                       |
-                       ▼
-             Flask API + Dashboard
+GBFS API (every 5 min)                   CitiBike S3 trip CSVs (monthly)
+station_status / station_information             |
+        |                                        |
+        ▼                                        ▼
+availability_snapshots, stations               trips ------------
+        |                 |                      |              |
+        |                 ▼ detect transitions   ▼              |
+        |          station_status_changes   hourly_patterns     |
+        |                 |                      |              |
+        |           pair outage start ↔ end      |              |
+        |                 ▼                      |              |
+        |          station_outages (view)        |              |
+        |                 |                      |              |
+        |                 └──────────┬───────────┘              |
+        |                            ▼                          ▼ 
+        |                    rebalancing_flags     daily_station_metrics
+        |                            |                      |
+        ▼                            ▼                      |
+technician_alerts (view) ◄──── chronic %                    |
+        |                                                   |
+        └───────────────────►  Flask API + Dashboard  ◄─────┘
 ```
 
 ---
 
 ## Data Model
 
+![Schema](schema/citibike_schema.svg)
+
 **Source tables** (loaded by ETL)
-- `stations`: one row per station (~2,400), from the GBFS station feed
-- `availability_snapshots`: one row per station every 5 minutes (~9.6M rows over 14 days)
-- `trips`: one row per historical trip from CitiBike S3 (~3.8M rows)
+- `stations`: one row per station (~2,400), from the GBFS station feed.
+- `availability_snapshots`: one row per station every 5 minutes (~9.6M rows). Unique on `(station_id, captured_at)`, so a snapshot can never be loaded twice.
+- `trips`: one row per trip from the CitiBike S3 archive (~3.3M rows). Unique on `ride_id`. Linked to `stations` through `short_name`, because the trip CSVs and the live feed use different station ID formats.
 
-**Derived tables** (rebuilt by scheduled jobs)
-- `station_status_changes`: one row per state transition (became empty, recovered, went offline, …). Compresses millions of snapshots into a small event log.
-- `daily_station_metrics`: one row per station per day: trips started/ended, average/min/max bikes, % of in-service time empty/full
-- `hourly_patterns`: one row per station × day of week × hour: average trips started/ended and net flow
-- `rebalancing_flags`: one row per station per flag type per rush window
+**Derived tables** (disposable: rebuilt from the source tables)
+- `station_status_changes`: one row per state change (became empty, recovered, went offline, …). Compresses millions of snapshots into a small event log, and makes duration measurable.
+- `daily_station_metrics`: one row per station per day: trips started and ended, average/min/max bikes, % of in-service time empty and full.
+- `hourly_patterns`: one row per station per day per hour: average trips started, ended, and net flow.
+- `rebalancing_flags`: one row per station per flag type per rush window.
 
-**View** (computed when queried)
-- `station_outages`: one row per outage episode: start, end, minutes, whether it is still ongoing, and whether it overlapped an offline period
+**Views** (computed when queried, never stale)
+- `station_outages`: one row per outage episode with start, end, minutes, whether it is still ongoing, and whether it overlapped an offline period.
+- `technician_alerts`: the latest snapshot per station, classified as empty / full / near_empty / near_full, with minutes in that state and chronic rush-hour percentage.
 
 ---
 
 ## Pipeline and Schedule
 
-| Job | Runs | Refresh style |
-|---|---|---|
-| Collect snapshots + detect status changes | every 5 min | append new rows only |
-| `daily_station_metrics` | nightly | recompute the last 3 days |
-| `rebalancing_flags` | weekly | full rebuild in one transaction |
-| `hourly_patterns` | after each monthly trips load | full rebuild |
-| `station_outages` | on read | view |
+Each job runs on the cadence of the data that actually changes its result.
 
-Three kinds of SQL scripts:
-- **Schema** (`sql_scripts/citibike_schema.sql`): creates empty tables. Runs once.
-- **Backfill** (`sql_scripts/backfill/`): fills a table from all history. Runs once at setup.
-- **Jobs** (`sql_scripts/jobs/`): keeps a table current. Runs on a schedule.
+| Job | Runs | Refresh style | Why this cadence |
+|---|---|---|---|
+| Collect snapshots, detect status changes | every 5 min | append only | the live feed has no history; missed snapshots are lost |
+| `daily_station_metrics` | nightly | recompute the last 2 days | late snapshots can change yesterday |
+| `rebalancing_flags` | weekly | full rebuild in one transaction | recurring patterns change slowly |
+| `hourly_patterns` + trip columns of `daily_station_metrics` | after each monthly trips load | full rebuild / backfill that month | they only change when `trips` changes |
+| `station_outages`, `technician_alerts` | on read | views | always current |
 
-The schedule lives in [`deploy/crontab`](deploy/crontab).
+Every job is safe to rerun: loaders use `ON CONFLICT`, rebuilds use `TRUNCATE` or `DELETE` inside a transaction, and `flock` stops two copies of a job from running at once. The schedule lives in [`deploy/crontab`](deploy/crontab).
+
+**Why cron and not Airflow.** There are four scheduled jobs and the only dependency (rebuild `hourly_patterns` after loading trips) is chained inside one script. Airflow would add a scheduler, a metadata database, and a web server for no gain. It becomes the right tool once jobs depend on each other, need date range backfills, or need visible retries.
 
 ---
 
 ## Time Zones
 
-All event timestamps (`captured_at`, `last_reported`, `started_at`, `ended_at`) are stored as `TIMESTAMPTZ`.
-
-- GBFS snapshots arrive in UTC and are tagged as UTC at ingestion.
-- Trip CSVs are in New York local time and are tagged `America/New_York` at load.
-- The database time zone is set so that hour-of-day and day-of-week logic uses New York time:
-  ```sql
-  ALTER DATABASE citibike SET timezone = 'America/New_York';
-  ```
+- `captured_at`, `started_at`, and `ended_at` are stored as `TIMESTAMPTZ`.
+- GBFS snapshots arrive in UTC. Trip CSVs are New York local time and are tagged `America/New_York` when loaded.
+- Every job starts with `SET LOCAL TIME ZONE 'America/New_York'`, so rush-hour and day-of-week logic uses New York time regardless of the server's setting. The database default is also set to New York.
 
 ---
+
+## Data Quality
+
+- **Duplicate trips found and fixed.** 250,000 rides had been loaded three times by an early version of the loader, inflating trip counts by about 15%. The extra 500,000 rows were removed, a `UNIQUE (ride_id)` constraint was added so the loader's `ON CONFLICT` actually protects against reloads, and every table built from trips was rebuilt.
+- **Out-of-service snapshots are excluded.** A station switched off for maintenance reports 0 bikes. Empty rates only count snapshots where the station is installed and renting; full rates only where it is installed and accepting returns.
+- **Unpublished trips are NULL, not 0.** Trip data arrives monthly, so recent days have no trip counts yet. They are stored as NULL ("not published") so the dashboard does not show a false zero.
+
+---
+
+## Key Technical Decisions
+
+**Three layers: now, duration, reputation.** A percentage like "empty in 40% of rush snapshots" cannot tell 42vminute blips from one 3 hour outage. The event log and outage view make duration measurable, and the live view answers "right now." Each layer answers a different question.
+
+**AM and PM are separate windows.** A station near offices fills in the morning and drains in the evening. Averaged together it looks balanced; split, it gets two flags with opposite actions.
+
+**Outages are matched to rush hour by overlap, not by start time.** A station that was already empty when the rush began is often the worst one. Matching on `started_at < window_end AND ended_at > window_start` counts it.
+
+**Median, not mean, outage minutes.** Durations are right-skewed, so a few very long outages would dominate a mean.
+
+**Ongoing outages are excluded from duration.** An outage still in progress has an unknown end, so including it would bias medians low. Outages that overlap an offline period are excluded too, since a truck can't fix those.
+
+**Thresholds in one place.** All flag thresholds and sample size guards live in a single `params` CTE, so they can be tuned and explained in one spot.
+
+**Views compute on read, tables on a schedule.** Outage episodes and live alerts are views, so they always match the event log. Flags are a table: a weekly verdict that stays fixed until the next run.
+
+---
+
+## Limitations
+
+<!-- Check these numbers against the dashboard's date range before publishing. -->
+- **Short history.** Snapshots cover about two weeks of January 2026. Imbalance flags rest on only a few days per weekday; more months would make them more stable.
+- **Different periods.** Chronic flags use snapshots, while imbalance flags use the trip window, so the two describe slightly different periods.
+- **Collection gaps.** If the collector stops, the first snapshots after the restart can create false outages lasting months. The flags avoid this by using a closed date window, and the live view ignores events from before the restart. The proper fix is to exclude any outage that spans a gap in collection.
+- **No freshness alert yet.** The first addition for production would be an alert when the newest snapshot is more than 15 minutes old. That is how the collection gap above would have been caught early.
 
 ---
 
 ## Running It
 
-### Local (dashboard only)
-
-**Prerequisites:** PostgreSQL, Python 3.9+
+**Prerequisites:** PostgreSQL 16, Python 3.9+
 
 ```bash
 git clone https://github.com/rime11/citibike-rebalancing-api
 cd citibike-rebalancing-api
 pip install -r requirements.txt
-cp .env.example .env            # fill in your PostgreSQL credentials
-psql -d citibike -f sql/citibike_schema.sql
-python app.py                   # http://localhost:5000
-```
-### Full pipeline on AWS Lightsail
+cp .env.example .env                       # fill in your PostgreSQL credentials
 
-```bash
-# 1. Empty tables
-psql -d citibike -f sql/citibike_schema.sql
+psql -d citibike -f schema/schema.sql      # empty tables, views, indexes
 
-# 2. Source data (stations first; other tables reference it)
-python3 python/load_station_info.py
-python3 python/fetch_snapshots.py && python3 python/load_snapshots_data.py
-python3 python/load_trips.py 202601-citibike-tripdata.csv
+# Source data (stations first; the other tables reference it)
+python3 scripts/backfill/load_station_info.py
+python3 scripts/backfill/fetch_snapshots.py && python3 scripts/backfill/load_snapshots_data.py
+python3 scripts/backfill/trips/load_trips.sh 202601-citibike-tripdata.csv
 
-# 3. One-time build of every derived table, in dependency order
-scripts/build_all.sh
+# One-time build of every derived table, in dependency order
+jobs/build_all.sh
 
-# 4. Turn on the schedule
+# Dashboard (http://localhost:5000); FLASK_DEBUG=1 for local debugging only
+cd citibike_api && python app.py
+
+# Production schedule
 crontab deploy/crontab
 ```
+
+---
+
 ## Project Structure
 
 ```
 citibike-rebalancing-api/
-├── citibike_api 
-        ├── app.py                  # Flask routes
-        ├── db.py                   # Database connection
-        ├── queries.py              # Dashboard and API queries
-        ├── templates/              # Dashboard HTML
-├── data_collection/                # ETL: fetch/load snapshots, stations, trips
-├── schema
-│   ├── citibike_schema.sql         # Full schema DDL
-├── sql_scripts            
-│   ├── backfill/                   # One-time builds
-│   ├──refresh/                     # Scheduled refreshes
-|   └── jobs                        # build_all.sh, collect.sh, run_sql.sh, load_trips.sh
-├── deploy/crontab                  # Production schedule
-├── notebooks/                      # Exploration
+├── citibike_api/
+│   ├── app.py               # Flask routes
+│   ├── db.py                # Database connection
+│   ├── queries.py           # Dashboard and API queries
+│   └── templates/           # Dashboard HTML
+├── scripts/data_collection/ # ETL: fetch and load snapshots, stations, trips
+├── schema/
+│   └── schema.sql           # Full schema, generated with pg_dump -s
+├── sql_scripts/
+│   ├── backfill/            # One-time builds
+│   ├── refresh/             # Scheduled SQL refreshes
+├── jobs/                    # build_all.sh, collect.sh, run_sql.sh, load_trips.sh
+├── deploy/crontab           # Production schedule
+├── notebooks/               # Exploration
 ├── .env.example
 └── requirements.txt
 ```
----
-
-## Key Technical Decisions
-
-**`short_name` for station ID matching.** The GBFS feed and the trip CSVs use different station ID formats. Matching on `short_name` resolves ~99% of stations without a separate mapping table.
-
-**Out-of-service snapshots are excluded.** A station switched off for maintenance reports 0 bikes. Counting that as "empty" would flag broken stations as rebalancing problems, so empty rates use only snapshots where the station is installed and renting, and full rates only where it is installed and accepting returns.
-
-**AM and PM are separate windows.** A station near offices fills in the morning and drains in the evening. Averaged together it looks balanced; split, it gets two flags with opposite actions.
-
-**Ongoing outages are excluded from duration.** An outage still in progress at refresh time has an unknown end (right-censored), so including it would bias median durations low. Outages that overlap an offline period are excluded too, since a truck can't fix those.
-
-**Data driven severity thresholds.** Chronic severity cutoffs (10% / 25% / 50%) come from the distribution of empty and full rates across stations, not arbitrary round numbers.
-
-**Views compute on read, tables on a schedule.** Outage episodes are a view, so they always match the event log. Flags are a table: a weekly decision that stays fixed until the next run.
-
-**cron, not Airflow.** A handful of jobs on fixed schedules don't need a scheduler with a web UI. Each job runs on the cadence of the data that changes it, and every job is safe to re-run.
-
----
-## Limitations
-
-- Snapshots cover 14 days and trips about 2 months, so imbalance averages rest on about 8 days per weekday. More months would make them more stable.
-- Chronic flags use recent snapshots, while imbalance flags use the full trip window, so the two describe slightly different periods.
-- Trip data is published monthly, so recent days have no trip counts yet. These are stored as NULL ("not published"), not 0.
 
 ---
 
 ## Data Sources
 
 - Real-time availability: CitiBike GBFS feed, `https://gbfs.lyft.com/gbfs/2.3/bkn/en/station_status.json`
-- Historical trips: CitiBike S3, `https://s3.amazonaws.com/tripdata/index.html` (not included in the repo due to size)
+- Historical trips: CitiBike S3, `https://s3.amazonaws.com/tripdata/index.html` (not included in the repo because of size)
 
 ---
 
-*DTSC 691 Database Capstone, Eastern University*
+*Started as the DTSC 691 Database Capstone, Eastern University; reworked as a portfolio project.*
+
+
 
 

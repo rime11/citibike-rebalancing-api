@@ -1,7 +1,9 @@
 #!/bin/bash
-# scripts/load_trips.sh — usage: ./load_trips.sh 202606-citibike-tripdata.csv
+# scripts/backfill/trips/load_trips.sh — usage: ./load_trips.sh 202606-citibike-tripdata.csv
 set -e
 FILE=$(realpath "$1")
+REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+SQL_DIR="$REPO_ROOT/scripts/backfill/trips"
 
 psql -d citibike <<EOF
 \set ON_ERROR_STOP on
@@ -47,3 +49,9 @@ COMMIT;
 EOF
 
 echo "Loaded $FILE"
+
+# trips changed -> rebuild the tables built from it, in dependency order
+
+psql -d citibike -v ON_ERROR_STOP=1 -f "$SQL_DIR/hourly_patterns_refresh.sql"
+psql -d citibike -v ON_ERROR_STOP=1 -f "$SQL_DIR/daily_metrics_refresh.sql"
+echo "Rebuilt hourly_patterns and daily_station_metrics"
