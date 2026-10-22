@@ -6,7 +6,6 @@ A data engineering project that tells a CitiBike operations team which stations 
 
 
 ![Dashboard](/citibike-rebalancing-api/schema/citibike_schema%20.svg)
-
 ---
 
 ## The Problem
