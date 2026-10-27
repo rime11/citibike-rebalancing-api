@@ -162,7 +162,7 @@ def get_at_risk_stations(status: str = None, limit: int = 10) -> list:
     return query_db(sql,{'status':status,'limit':limit})
 
 def get_at_risk_counts() -> list:
-    '''How many stations are in each at-risk status right now.'''
+    '''How many stations are in each at risk status right now.'''
     sql = '''
     SELECT status, COUNT(*) AS n
     FROM technician_alerts
@@ -186,7 +186,7 @@ def get_problem_stations_ranking(flag_type: str = None, window: str = None, per_
                                              ABS(metric_value) DESC) AS rank_in_group,
                  COUNT(*) OVER (PARTITION BY flag_type, window_label) AS group_size
              FROM rebalancing_flags
-            WHERE (CAST(:flag_type AS text) IS NULL OR flag_type    = :flag_type)
+            WHERE (CAST(:flag_type AS text) IS NULL OR flag_type = :flag_type)
                 AND (CAST(:window AS text) IS NULL OR window_label = :window)
          )
          SELECT

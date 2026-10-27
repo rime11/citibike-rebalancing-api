@@ -4,7 +4,7 @@ A data engineering project that tells a CitiBike operations team which stations 
 
 **Stack:** PostgreSQL · Python · Flask · cron · AWS Lightsail
 
-
+**Live Demo** [Interactive Dashboard](https://rime11.github.io/citibike-rebalancing-api/) (static snapshot of the API output, January 2026 data)
 ---
 
 ## The Problem
