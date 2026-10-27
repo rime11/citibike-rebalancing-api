@@ -5,7 +5,6 @@ A data engineering project that tells a CitiBike operations team which stations 
 **Stack:** PostgreSQL · Python · Flask · cron · AWS Lightsail
 
 
-![Schema](schema/citibike_schema.svg)
 ---
 
 ## The Problem

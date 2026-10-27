@@ -19,7 +19,9 @@ env/
 # Data files (too large for GitHub)
 *.csv
 *.zip
+!doc/data/
 data/
+
 my_docs/
 
 # OS
