@@ -70,66 +70,6 @@ def dashboard():
 
 
 #-------------------------Queries---------------------------------
-#-----------------------STATION DETAIL QUERIES -------------------
-@app.get("/api/stations")
-def list_station_info():    
-    """Returns a list of all stations with basic info"""
-    rows = queries.get_station_info()
-    
-    return ok(rows)
-
-@app.get("/api/stations/<station_id>")
-def station_info(station_id):
-    '''Query 1: Stations basic lookup with flags and status and recent trip activities in the last 7 days'''
-    result = queries.get_station_info(station_id)
-    if not result:
-        abort(404, description = f"Station {station_id} not found")
-    return ok(result)
-
-@app.get("/api/stations/<station_id>/availability")
-def latest_availability(station_id):
-    '''Query 2: most recent bike and dock availability and availability_status for a specific station'''
-         
-    result = queries.get_latest_availability(station_id)
-    if not result:
-        abort(404, description = f"No availability for {station_id}")
-    return ok(result)
-
-@app.get("/api/stations/<station_id>/metrics")
-def rolling_metrics(station_id):
-    ''' 
-    Query 3: moving average of trips started moving over past 7 days from current date, 
-    and compare number of trips started to the previous day and print if it went down, up or stayed the same.
-    '''
-    rows = queries.get_rolling_metrics(station_id)
-    if not rows:
-        abort(404, description = f"No metrics for {station_id}")
-    return ok(rows)
-                    
-
-@app.get("/api/stations/<station_id>/hourly")
-def station_hourly(station_id):
-    ''' 
-    Query 4: Hourly_patterns for one station, weekday vs weekend.   
-    This can be used to identify the peak hours for that station and how it changes by day of week. 
-    '''
-    rows = queries.get_hourly_demand_patterns(station_id)
-    if not rows:
-        abort(404, description = f"No hourly patterns for {station_id}")
-    return ok(rows)
-
-
-@app.get("/api/stations/<station_id>/changes")
-def station_status_changes(station_id):
-    '''
-    Query 7: 
-    
-    20 most recent status changes with time since last change for a specific station,
-    '''
-    rows = queries.get_status_changes(station_id)
-    if not rows:
-        abort(404, description = f"Station {station_id} not found")
-    return ok(rows)
 
 #-------------------------Flags-------------------------
 @app.get("/api/flags")
@@ -177,7 +117,11 @@ def date_range():
 
 @app.get('/api/at_risk')
 def at_risk_stations():
-    '''At-risk now: stations empty, full, or close to it in the latest snapshot (technician_alerts view).'''
+    '''
+    Query 13:
+    At-risk now: stations empty, full, or close to it in the latest snapshot 
+    (technician_alerts view).
+    '''
     rows = queries.get_at_risk_stations(limit=_int_param("limit", default=10, max_val=200),
                                         status=request.args.get("status") or None)
     return ok(rows)
@@ -196,7 +140,7 @@ def problem_station_ranking():
     '''
      rows = queries.get_problem_stations_ranking(flag_type=request.args.get("flag_type") or None,
                                                  window=request.args.get("window") or None,
-                                                 per_group=_int_param("per_group", default = 3, max_val=20) 
+                                                 per_group=_int_param("per_group", default = 3, max_val=20)  
                                                  )
 
      return ok(rows)
