@@ -1,4 +1,5 @@
 # CitiBike Station Rebalancing Analysis
+![Dashboard](docs/dashboard.png)   
 
 A data engineering project that tells a CitiBike operations team which stations need bikes or docks **right now**, how long they have been in trouble, and which stations fail **over and over** during weekday rush hour.
 
